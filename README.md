@@ -130,6 +130,18 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 All applications are licensed under the MIT License - see the LICENSE file in each application directory for details.
 
+## Disclaimer
+
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The applications in this repository may use external APIs and services (such as OpenRouter, OpenAI, etc.). Users are responsible for:
+- Obtaining their own API keys
+- Complying with the terms of service of these external services
+- Managing any associated costs or usage limits
+- Ensuring compliance with data protection and privacy regulations in their jurisdiction
+
+While efforts have been made to secure these applications, users should perform their own security review before deploying in production environments.
+
 ## Author
 
 Neo (github.com/neooriginal) - Copyright © 2025
