@@ -1,0 +1,18 @@
+{
+  "name": "omi-jarvis",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": ["ai", "assistant", "jarvis"],
+  "author": "Neo (github.com/neooriginal)",
+  "license": "MIT",
+  "description": "Jarvis AI Assistant",
+  "dependencies": {
+    "express": "^4.21.1",
+    "fs": "^0.0.1-security",
+    "winston": "^3.17.0"
+  }
+}

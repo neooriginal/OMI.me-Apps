@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain - Login</title>
+    <link rel="icon" type="image/png" href="logo.jpg">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script defer src="https://umami.neoserver.dev/script.js"
+        data-website-id="7f752d03-4471-4b3a-96cd-1f379a42d177"></script>
+    <style>
+        .login-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 400px;
+            padding: 40px;
+            background: rgba(15, 15, 20, 0.95);
+            border-radius: 16px;
+            border: 1px solid rgba(0, 255, 170, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .logo {
+            margin-bottom: 30px;
+            color: #00ffaa;
+            font-size: 2.5em;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 170, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: rgba(0, 255, 170, 0.6);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .login-btn {
+            background: rgba(0, 255, 170, 0.15);
+            border: 1px solid rgba(0, 255, 170, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            color: #00ffaa;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            background: rgba(0, 255, 170, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .error-message {
+            color: #ff1493;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .privacy-link {
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .privacy-link:hover {
+            color: #00ffaa;
+        }
+
+        /* Toggle switch styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 255, 170, 0.15);
+            transition: .4s;
+            border: 1px solid rgba(0, 255, 170, 0.3);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: #00ffaa;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: rgba(255, 20, 147, 0.15);
+            border-color: rgba(255, 20, 147, 0.3);
+        }
+
+        input:checked+.slider:before {
+            background-color: #ff1493;
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 24px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        .version-select {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 0;
+        }
+
+        .version {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="logo">Brain</div>
+        <form class="login-form" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <input type="text" id="uid" placeholder="Enter your UID" required>
+            </div>
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+        <a href="/privacy.html" class="privacy-link">Privacy Policy</a>
+    </div>
+    <div class="version">v1.0.0</div>
+
+    <script>
+        // Store origin path when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Store main path for login redirect
+            console.log('/');
+
+            sessionStorage.setItem('loginOrigin', '/');
+
+            let uid = getParams('uid');
+            if (uid) {
+                document.getElementById('uid').value = uid;
+            }
+        });
+
+        function getParams(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const uid = document.getElementById('uid').value.trim();
+            const loginForm = document.querySelector('.login-form');
+            const loginBtn = document.querySelector('.login-btn');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ uid })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('uid', uid);
+                    // Login successful, redirect to main app
+                    window.location.href = '/';
+                } else {
+                    throw new Error(data.error || 'Login failed');
+                }
+            } catch (error) {
+                const errorDiv = document.querySelector('.error-message') || document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = error.message;
+                if (!document.querySelector('.error-message')) {
+                    loginForm.appendChild(errorDiv);
+                }
+            }
+        }
+
+        // Check for error parameter in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        if (error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = decodeURIComponent(error);
+            document.querySelector('.login-form').appendChild(errorDiv);
+        }
+    </script>
+    <div class="zap-hosting-banner">
+        <a href="https://discord.gg/eUdJ5xdw8Q" target="_blank">
+            <div class="promo-text">New Brain Version - Try now</div>
+        </a>
+    </div>
+</body>
+
+</html>

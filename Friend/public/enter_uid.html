@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+   
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>friend</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script defer src="https://umami.neoserver.dev/script.js" data-website-id="2f565964-76c3-4354-b03e-68ba1d9aab27"></script>
+    <link rel="icon" href="/logo.png">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 40px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-brand {
+            font-family: var(--font-display);
+            font-size: 24px;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 440px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .login-header {
+            margin-bottom: 24px;
+        }
+
+        .login-header h3 {
+            font-family: var(--font-display);
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .uid-input {
+            width: 100%;
+            background: var(--surface-hover);
+            border: none;
+            color: var(--text);
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            margin-bottom: 16px;
+            font-family: var(--font-body);
+        }
+
+        .uid-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--surface-hover);
+            border: none;
+            color: var(--text);
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .footer {
+            padding: 24px 40px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-left {
+            font-family: var(--font-display);
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .footer-link:hover {
+            color: var(--text);
+        }
+
+        .tooltip {
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 15px;
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--text-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+            margin-top: 1px;
+        }
+
+        .tooltip::before {
+            content: "?";
+            line-height: 1;
+            position: relative;
+            top: -1px;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            white-space: nowrap;
+            border: 1px solid var(--border);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            margin-bottom: 8px;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip-text::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-top-color: var(--border);
+        }
+
+        @media (max-width: 768px) {
+
+            .top-nav,
+            .footer {
+                padding: 24px 20px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .footer {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="top-nav">
+        <a href="/" class="nav-brand">friend</a>
+    </nav>
+
+    <main class="main-content">
+        <div class="login-card">
+            <div class="login-header">
+                <h3>
+                    enter your unique identifier
+                    <div class="tooltip">
+                        <span class="tooltip-text">you can find this when you press "Setup Friend" in the Friend App
+                            Page inside the OMI App.</span>
+                    </div>
+                </h3>
+            </div>
+            <input type="text" class="uid-input" id="uid-input" placeholder="your uid">
+            <div class="banner-container" style="
+                width: 100%;
+                text-align: center;
+                margin: 20px 0;
+                padding: 20px;
+                background: linear-gradient(45deg, var(--surface) 0%, var(--surface-hover) 100%);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
+            "
+            onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)'"
+            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    padding: 6px;
+                    background: var(--accent);
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">🚀 Recommended Hosting Partner</div>
+                <div style="margin-top: 24px;">
+                    <a href="https://zap-hosting.com/OMI"><img src="https://zap-hosting.com/interface/download/images.php?type=affiliate&id=412159" alt="ZAP-Hosting Gameserver and Webhosting" style="max-width: 100%; height: auto; border-radius: 8px;"></a>
+                </div>
+            </div>
+            <button class="submit-btn" onclick="submitUID()">
+                continue
+            </button>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-left">
+            omi friend app © 2024
+            <span class="disclaimer">not affiliated with friend.com</span>
+        </div>
+        <div class="footer-right">
+            <a href="/privacyPolicy" class="footer-link">privacy policy</a>
+            <a href="https://omi.me" class="footer-link">omi.me</a>
+        </div>
+    </footer>
+
+    <script>
+
+        function submitUID() {
+            const uid = document.getElementById('uid-input').value.trim();
+            if (uid) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const returnTo = urlParams.get('returnTo');
+                window.location.href = `/?uid=${uid}${returnTo ? `&returnTo=${returnTo}` : ''}`;
+            }
+        }
+
+        // Handle Enter key
+        document.getElementById('uid-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                submitUID();
+            }
+        });
+    </script>
+</body>
+
+</html>

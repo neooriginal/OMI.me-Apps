@@ -1,0 +1,148 @@
+:root {
+    --background: #000000;
+    --surface: #0A0A0A;
+    --surface-hover: #141414;
+    --text: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #FF3B30;
+    --font-display: "Fraunces", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-display);
+    font-weight: 500;
+}
+
+.sidebar {
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px;
+    height: 100vh;
+    position: fixed;
+}
+
+
+.disclaimer {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+@media (max-width: 768px) {
+    .disclaimer {
+        margin-top: 8px;
+    }
+}
+
+
+.sidebar-brand {
+    font-family: var(--font-display);
+    font-size: 24px;
+    margin-bottom: 40px;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    padding: 12px 16px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+    font-size: 15px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    transition: all 0.15s ease;
+}
+
+.btn:hover {
+    background: var(--surface-hover);
+}
+
+.analytics-section,
+.goals-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    margin-top: 16px;
+}
+
+.analytics-card {
+    background: var(--surface-hover);
+    border-radius: 12px;
+    padding: 16px;
+    min-height: 200px;
+}
+
+.goals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.goal-card {
+    background: var(--surface-hover);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+}
+
+.goal-progress {
+    width: 100%;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    margin-top: 8px;
+}
+
+.goal-progress-bar {
+    height: 100%;
+    background: var(--text);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}

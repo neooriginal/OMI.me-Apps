@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>friend</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="/logo.png">
+    <script defer src="https://umami.neoserver.dev/script.js" data-website-id="2f565964-76c3-4354-b03e-68ba1d9aab27"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="/css/dashboardStyle.css">
+</head>
+
+<body>
+    <nav class="top-nav">
+        <a href="/" class="nav-brand">friend</a>
+        <div class="nav-links">
+            <a class="nav-link active" onclick="navigate('/')">dashboard</a>
+            <a class="nav-link" onclick="navigate('settings')">settings</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="personality-presets-section">
+            <div class="section-header">
+                <h3>friend personas</h3>
+                <div class="tooltip">?
+                    <span class="tooltip-text">choose who you want your friend to be like</span>
+                </div>
+                <!--button use this current character-->
+                <button class="btn" onclick="saveCharacter()">use current character</button>
+            </div>
+
+            <div class="personality-container">
+                <div class="personality-selector">
+                    <div class="selected-personality">
+                        <img src="/images/nik.png" alt="Nik" id="selected-image">
+                        <span id="selected-name">nik</span>
+                        <button class="dropdown-toggle">▼</button>
+                    </div>
+
+                    <div class="personality-dropdown">
+                        <div class="preset-card" data-preset="nik"
+                            data-traits="nik:100,teasing:40,deep:30,thoughtful:20,friendly:20,humorous:30,chill:10"
+                            data-prompt="You are Nik Shevchenko: direct, bold, and succinct. Use his signature style of starting with playful disses, then transitioning to motivational insights. Focus on hardware, AI, and building things. Challenge me to think bigger and take action. Keep responses short but impactful.">
+                            <div class="preset-info">
+                                <img src="https://pbs.twimg.com/profile_images/1426270630320689158/6Q93EQsa_400x400.jpg"
+                                    style="width: 30px; height: 30px;" alt="Nik" onerror="handleMissingImage(this)">
+                                <div class="preset-details">
+                                    <h4>nik shevchenko</h4>
+                                    <p>founder of omi, direct & motivational</p>
+                                    <div class="preset-traits">
+                                        <span>100% nik</span>
+                                        <span>40% teasing</span>
+                                        <span>30% deep</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="preset-card" data-preset="neo"
+                            data-traits="chill:100,focused:35,mysterious:55,thoughtful:10,strategic:20,humorous:5,resilient:20"
+                            data-prompt="You are Neo, The One from The Matrix. You are calm and focused, with an air of mystery. While generally reserved, you show strategic thinking and resilience in the face of challenges. You occasionally display subtle humor, but remain thoughtful and philosophical about the nature of reality and human potential.">
+                            <div class="preset-info">
+                                <img src="https://a1cf74336522e87f135f-2f21ace9a6cf0052456644b80fa06d4f.ssl.cf2.rackcdn.com/images/characters/large/2800/Neo.The-Matrix.webp"
+                                    style="width: 30px; height: 30px;" alt="Neo" onerror="handleMissingImage(this)">
+                                <div class="preset-details">
+                                    <h4>neo</h4>
+                                    <p>the one</p>
+                                    <div class="preset-traits">
+                                        <span>100% chill</span>
+                                        <span>35% focused</span>
+                                        <span>55% mysterious</span>
+                                        <span>10% thoughtful</span>
+                                        <span>20% strategic</span>
+                                        <span>5% humorous</span>
+                                        <span>20% resilient</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="preset-card" data-preset="sam"
+                            data-traits="thoughtful:80,deep:60,friendly:40,teasing:20,humorous:20,chill:20,nik:0"
+                            data-prompt="You are Sam Altman. He is optimistic and thoughtful personality...">
+                            <div class="preset-info">
+                                <img src="https://x.com/sama/photo" style="width: 30px; height: 30px;" alt="Sam"
+                                    onerror="handleMissingImage(this)">
+                                <div class="preset-details">
+                                    <h4>sam altman</h4>
+                                    <p>optimistic tech visionary & mentor</p>
+                                    <div class="preset-traits">
+                                        <span>80% thoughtful</span>
+                                        <span>60% deep</span>
+                                        <span>40% friendly</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="preset-card" data-preset="custom">
+                            <div class="preset-info">
+                                <div class="preset-details">
+                                    <h4>custom character</h4>
+                                    <div class="preset-traits">
+                                        <!-- custom traits will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- Add other personality cards here -->
+                </div>
+            </div>
+
+            <div class="chat-interface">
+                <div class="chat-messages"></div>
+                <div class="chat-input">
+                    <input type="text" placeholder="Type a message...">
+                    <button>send</button>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card loading-blur getDataLoading">
+                <div class="stat-header">
+                    <h3>conversations</h3>
+                    <div class="tooltip">?
+                        <span class="tooltip-text">number of conversations your friend listened to (cooldown
+                            applies)</span>
+                    </div>
+                </div>
+                <div class="stat-value" id="requestsCount">0</div>
+            </div>
+            <div class="stat-card loading-blur getDataLoading">
+                <div class="stat-header">
+                    <h3>rating</h3>
+                    <div class="tooltip">?
+                        <span class="tooltip-text">your friend's rating based on conversations</span>
+                    </div>
+                </div>
+                <div class="stat-value" id="ratingValue">0%</div>
+                <div class="rating-bar-container">
+                    <div class="rating-bar" id="ratingBar"></div>
+                </div>
+                <button class="btn" onclick="reRate()">
+                    recalculate
+                </button>
+            </div>
+            <div class="stat-card loading-blur getStatisticLoading">
+                <div class="stat-header">
+                    <h3>total words</h3>
+                    <div class="tooltip">?
+                        <span class="tooltip-text">total number of words your friend has listened to</span>
+                    </div>
+                </div>
+                <div class="stat-value" id="totalWords">0</div>
+            </div>
+        </div>
+
+        <div class="banner-container" style="
+            width: 100%;
+            text-align: center;
+            margin: 40px 0;
+            padding: 20px;
+            background: linear-gradient(45deg, var(--surface) 0%, var(--surface-hover) 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        "
+        onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)'"
+        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                padding: 6px;
+                background: var(--accent);
+                color: white;
+                font-size: 14px;
+                font-weight: 500;
+            ">🚀 Recommended Hosting Partner</div>
+            <div style="margin-top: 24px;">
+                <a href="https://zap-hosting.com/OMI"><img src="https://zap-hosting.com/interface/download/images.php?type=affiliate&id=412159" alt="ZAP-Hosting Gameserver and Webhosting" style="max-width: 100%; height: auto; border-radius: 8px;"></a>
+            </div>
+        </div>
+
+        <div class="analytics-section">
+            <div class="section-header">
+                <h3>analytics</h3>
+                <div class="tooltip">?
+                    <span class="tooltip-text">detailed insights about your conversations</span>
+                </div>
+            </div>
+            <div class="analytics-grid">
+                <div class="analytics-card loading-blur getStatisticLoading">
+                    <h4>conversation times</h4>
+                    <canvas id="timeChart"></canvas>
+                </div>
+                <div class="analytics-card loading-blur getStatisticLoading">
+                    <h4>top words</h4>
+                    <div id="wordCloud"></div>
+                </div>
+                <div class="analytics-card loading-blur getStatisticLoading">
+                    <h4>sentiment trend</h4>
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+                <div class="analytics-card loading-blur getStatisticLoading">
+                    <h3>day image</h3>
+                    <div id="imageContainer" class="image-container">
+                        <p id="imageMessage" class="image-message">generate an image of your day based on your
+                            conversations</p>
+                        <img id="generatedImage" style="display: none; width: 100%; border-radius: 8px;" />
+                    </div>
+                    <button id="generateImageBtn" class="generate-image-btn" onclick="generateImage()">
+                        make it so
+                    </button>
+                    <p id="cooldownMessage" class="cooldown-message"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="goals-section">
+            <div class="section-header">
+                <h3>goals</h3>
+                <div class="tooltip">?
+                    <span class="tooltip-text">your conversation goals</span>
+                </div>
+            </div>
+            <div class="goals-grid" id="goalsContainer">
+                <!-- Goals will be dynamically inserted here -->
+            </div>
+            <button class="btn" onclick="addNewGoal()">add goal</button>
+        </div>
+
+
+    </main>
+
+    <footer class="footer">
+        <div class="footer-left">
+            omi friend app © 2024
+            <span class="disclaimer">not affiliated with friend.com</span>
+        </div>
+        <div class="footer-right">
+            <a href="/privacyPolicy" class="footer-link">privacy policy</a>
+            <a href="https://omi.me" class="footer-link">omi.me</a>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function initializeUID() {
+            try {
+                const uid = new URLSearchParams(window.location.search).get('uid');
+                const uidElement = document.getElementById('uid-display');
+                const actualUid = document.getElementById('actual-uid');
+
+                if (!uidElement || !actualUid || !uid) {
+                    console.error('Required elements not found or UID missing');
+                    return;
+                }
+
+                actualUid.textContent = uid;
+                setCookie('uid', uid);
+
+
+                uidElement.addEventListener('click', () => {
+                    uidElement.classList.toggle('revealed');
+                });
+            } catch (error) {
+                console.error('Error initializing UID display:', error);
+            }
+        }
+
+
+
+        function copyUID() {
+            const uid = new URLSearchParams(window.location.search).get('uid');
+            if (!uid) return;
+
+            navigator.clipboard.writeText(uid)
+                .then(() => {
+                    const copyBtn = document.querySelector('.copy-btn');
+                    copyBtn.textContent = 'copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'copy';
+                    }, 2000);
+                })
+                .catch(err => console.error('Failed to copy:', err));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeUID);
+        } else {
+            initializeUID();
+        }
+
+        async function reRate() {
+            try {
+                const uid = new URLSearchParams(window.location.search).get('uid');
+                const response = await fetch(`/reRate?uid=${uid}`);
+                if (response.ok) {
+                    Swal.fire({
+                        title: 'Rating updating...',
+                        icon: 'info',
+                        timer: 20000,
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    setTimeout(() => getData(), 20000);
+                }
+            } catch (error) {
+                showToast('Failed to update rating', 'error');
+            }
+        }
+
+        async function getData() {
+            const uid = getQueryParam('uid');
+            let response = await fetch(`/dashboardData`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ uid })
+            });
+            let data = await response.json();
+
+
+            let ratingValue = document.getElementById('ratingValue');
+            ratingValue.textContent = data.rating + '%';
+            let ratingBar = document.getElementById('ratingBar');
+            ratingBar.style.width = data.rating + '%';
+
+            let requestsCount = document.getElementById('requestsCount');
+            requestsCount.textContent = data.listenedto;
+
+            // Remove loading blur from stat cards
+            document.querySelectorAll('.getDataLoading').forEach(card => {
+                card.classList.remove('loading-blur');
+            });
+
+        }
+
+        async function initializeDashboard() {
+            const uid = getQueryParam('uid');
+            if (!uid) return;
+
+            try {
+                const response = await fetch(`/analytics?uid=${uid}`);
+                const data = await response.json();
+
+                let totalWords = document.getElementById('totalWords');
+                totalWords.textContent = data.totalWords || '0';
+
+                // Initialize charts
+                initializeTimeChart(data.timeDistribution);
+                initializeWordCloud(data.topWords);
+                initializeSentimentChart(data.sentimentOverTime);
+
+                // Remove loading blur from analytics cards
+                document.querySelectorAll('.getStatisticLoading').forEach(card => {
+                    card.classList.remove('loading-blur');
+                });
+
+                // Initialize goals
+                await loadGoals();
+
+
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                showToast('Failed to load analytics', 'error');
+            }
+        }
+
+        function initializeTimeChart(timeData) {
+            const canvas = document.getElementById('timeChart');
+
+            // Destroy existing chart if it exists
+            if (window.timeChart instanceof Chart) {
+                window.timeChart.destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            window.timeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Morning', 'Afternoon', 'Evening', 'Night'],
+                    datasets: [{
+                        label: 'Conversation Distribution',
+                        data: [
+                            timeData.morning,
+                            timeData.afternoon,
+                            timeData.evening,
+                            timeData.night
+                        ],
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.6)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.6)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+
+        function initializeWordCloud(wordData) {
+            const container = document.getElementById('wordCloud');
+            container.innerHTML = '';
+
+            // Convert data to array and sort by count
+            const words = Object.entries(wordData)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10); // Reduced from 50 to 10 words
+
+            // Find max count for scaling
+            const maxCount = Math.max(...words.map(([, count]) => count));
+
+            words.forEach(([word, count]) => {
+                const span = document.createElement('span');
+                span.textContent = word;
+
+                // Reduced font size range from 12-48px to 10-32px
+                const fontSize = 10 + (count / maxCount) * 22;
+                const opacity = 0.4 + (count / maxCount) * 0.6;
+
+                // Reduced translation range for tighter clustering
+                const rotate = Math.random() * 20 - 10; // Reduced rotation range
+                const translateX = Math.random() * 16 - 8; // Smaller X offset
+                const translateY = Math.random() * 16 - 8; // Smaller Y offset
+
+                Object.assign(span.style, {
+                    fontSize: `${fontSize}px`,
+                    opacity: opacity,
+                    margin: '3px', // Reduced margin
+                    padding: '3px', // Reduced padding
+                    display: 'inline-block',
+                    transform: `rotate(${rotate}deg) translate(${translateX}px, ${translateY}px)`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'default'
+                });
+
+                // Hover effects
+                span.addEventListener('mouseover', () => {
+                    span.style.transform = 'scale(1.2)';
+                    span.style.opacity = '1';
+                });
+
+                span.addEventListener('mouseout', () => {
+                    span.style.transform = `rotate(${rotate}deg) translate(${translateX}px, ${translateY}px)`;
+                    span.style.opacity = `${opacity}`;
+                });
+
+                container.appendChild(span);
+            });
+        }
+
+        function initializeSentimentChart(sentimentData) {
+            const canvas = document.getElementById('sentimentChart');
+
+            // Destroy existing chart if it exists
+            if (window.sentimentChart instanceof Chart) {
+                window.sentimentChart.destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            window.sentimentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(sentimentData),
+                    datasets: [{
+                        label: 'Sentiment',
+                        data: Object.values(sentimentData),
+                        borderColor: 'rgba(255, 255, 255, 0.6)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: -1,
+                            max: 1,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.6)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.6)',
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadGoals() {
+            const uid = getQueryParam('uid');
+            const container = document.getElementById('goalsContainer');
+
+            try {
+                const response = await fetch(`/goals?uid=${uid}`);
+                const goals = await response.json();
+
+                container.innerHTML = goals.map(goal => `
+                    <div class="goal-card">
+                        <div class="goal-header">
+                            <h4>${formatGoalType(goal.type)}</h4>
+                            <button class="delete-goal" onclick="deleteGoal(${goal.id})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <p class="goal-progress-text">${goal.progress}/${goal.target}</p>
+                        <div class="goal-progress">
+                            <div class="goal-progress-bar" style="width: ${(goal.progress / goal.target) * 100}%"></div>
+                        </div>
+                        <p class="goal-date">Started ${new Date(goal.created_at).toLocaleDateString()}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load goals:', error);
+                showToast('Failed to load goals', 'error');
+            }
+        }
+
+        function formatGoalType(type) {
+            return type.split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+
+        async function deleteGoal(id) {
+            const uid = getQueryParam('uid');
+            try {
+                const response = await fetch(`/goals/${id}?uid=${uid}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showToast('Goal deleted successfully');
+                    await loadGoals();
+                }
+            } catch (error) {
+                console.error('Failed to delete goal:', error);
+                showToast('Failed to delete goal', 'error');
+            }
+        }
+
+        async function addNewGoal() {
+            const uid = getQueryParam('uid');
+            const goalTypes = {
+                'daily_checkins': 'Daily Check-ins',
+                'deep_conversations': 'Deep Conversations',
+                'topic_exploration': 'Topic Exploration',
+                'emotional_growth': 'Emotional Growth'
+            };
+
+            const { value: formValues } = await Swal.fire({
+                title: 'Add New Goal',
+                html: `
+                    <select id="goalType" class="swal2-input">
+                        ${Object.entries(goalTypes).map(([key, label]) =>
+                    `<option value="${key}">${label}</option>`
+                ).join('')}
+                    </select>
+                    <input id="goalTarget" class="swal2-input" type="number" min="1" placeholder="Target value">
+                `,
+                focusConfirm: false,
+                preConfirm: () => {
+                    const target = document.getElementById('goalTarget').value;
+                    if (!target || target < 1) {
+                        Swal.showValidationMessage('Please enter a valid target number');
+                        return false;
+                    }
+                    return {
+                        type: document.getElementById('goalType').value,
+                        target: target
+                    }
+                }
+            });
+
+            if (formValues) {
+                try {
+                    const response = await fetch('/goals', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            uid,
+                            ...formValues
+                        })
+                    });
+
+                    if (response.ok) {
+                        showToast('Goal added successfully');
+                        await loadGoals();
+                    }
+                } catch (error) {
+                    console.error('Failed to add goal:', error);
+                    showToast('Failed to add goal', 'error');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            getData(); // Start polling
+            setInterval(getData, 5000);
+        });
+        // Initialize dashboard when DOM is loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+        } else {
+            initializeDashboard();
+        }
+
+        async function generateImage() {
+            const uid = getQueryParam('uid');
+            const btn = document.getElementById('generateImageBtn');
+            const msg = document.getElementById('imageMessage');
+            const img = document.getElementById('generatedImage');
+            const cooldownMsg = document.getElementById('cooldownMessage');
+
+            try {
+                btn.disabled = true;
+                let contentTextList = ["asking leonardo for help...", "consulting the ancient art of image generation...", "waking up the image generation elves...", "preparing the canvas for artistic greatness...", "channeling the creative energies...", "initiating the artistic vortex...", "summoning the muse of digital art...", "crafting a masterpiece, one pixel at a time...", "unleashing the power of AI creativity...", "orchestrating a symphony of colors...", "weaving a tapestry of digital wonder..."];
+                let contentText = contentTextList[Math.floor(Math.random() * contentTextList.length)];
+                let interval = setInterval(() => {
+                    contentText = contentTextList[Math.floor(Math.random() * contentTextList.length)];
+                    msg.textContent = contentText;
+                }, 3000);
+
+                const response = await fetch(`/generate-image?uid=${uid}`);
+                const data = await response.json();
+
+                if (response.status === 429) {
+                    const remainingTime = new Date(data.nextAvailable).toLocaleString();
+                    cooldownMsg.textContent = `Next generation available at: ${remainingTime}`;
+                    return;
+                }
+
+                if (data.imageUrl) {
+                    img.src = data.imageUrl;
+                    img.style.display = 'block';
+                    msg.style.display = 'none';
+                    cooldownMsg.textContent = 'Next generation available in 24 hours';
+                    clearInterval(interval);
+                }
+            } catch (error) {
+                msg.textContent = 'Failed to generate image. Please try again later.';
+                console.error('Image generation failed:', error);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        let initialCharacter = true;
+        function initializePersonalityPresets() {
+            // Get DOM elements
+            const selector = document.querySelector('.personality-selector');
+            const toggle = document.querySelector('.dropdown-toggle');
+            const presetCards = document.querySelectorAll('.preset-card');
+            const selectedImage = document.getElementById('selected-image');
+            const selectedName = document.getElementById('selected-name');
+            const chatMessages = document.querySelector('.chat-messages');
+            const chatInput = document.querySelector('.chat-input input');
+            const sendButton = document.querySelector('.chat-input button');
+
+            // Chat history
+            let conversationHistory = [];
+            let currentPersonality = null;
+
+            // Move handleMessage inside this scope
+            async function handleMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                const selectedCard = document.querySelector('.preset-card[data-preset="' + selectedName.textContent + '"]');
+
+                addMessage(message, 'user', chatMessages);
+                chatInput.value = '';
+
+                const response = await sendTestMessage(
+                    message,
+                    selectedCard.dataset.traits,
+                    selectedCard.dataset.prompt
+                );
+                addMessage(response, 'ai', chatMessages);
+            }
+
+            // Attach event listeners within the proper scope
+            sendButton.addEventListener('click', handleMessage);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleMessage();
+            });
+
+            // Handle personality selection
+            presetCards.forEach(card => {
+                card.addEventListener('click', async () => {
+                    const preset = card.dataset.preset;
+
+                    // Update display with different logic for custom
+                    if (preset === 'custom') {
+                        selectedImage.src = 'https://picsum.photos/200'; // Add a default image for custom
+                        selectedName.textContent = 'custom character';
+                    } else {
+                        selectedImage.src = card.querySelector('img')?.src || 'https://picsum.photos/200';
+                        selectedName.textContent = card.querySelector('h4').textContent;
+                    }
+
+                    selector.classList.remove('open');
+
+                    // Reset chat if switching personalities
+                    if (currentPersonality !== preset) {
+                        if (initialCharacter == true) return
+                        currentPersonality = preset;
+                        conversationHistory = [];
+                        chatMessages.innerHTML = '';
+
+                        // Send welcome message
+                        const response = await sendTestMessage(
+                            "starter",
+                            card.dataset.traits,
+                            card.dataset.prompt,
+                            []
+                        );
+                        addMessage(response, 'ai', chatMessages);
+                        conversationHistory.push({ role: 'assistant', content: response });
+                    }
+                });
+            });
+
+            // Dropdown toggle
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selector.classList.toggle('open');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!selector.contains(e.target)) {
+                    selector.classList.remove('open');
+                }
+            });
+
+            // Initialize first personality
+            if (presetCards.length > 0) {
+                presetCards[0].click();
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initializePersonalityPresets);
+
+        function addMessage(text, type, container) {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.textContent = text;
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function loadCharacter() {
+            try {
+                document.querySelector('.personality-container').classList.add('loading-blur');
+                document.querySelector('.chat-interface').classList.add('loading-blur');
+
+                const uid = getQueryParam('uid');
+                const response = await fetch(`/get`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid })
+                });
+                const data = await response.json();
+
+                if (!data.custominstruction || !data.personality) {
+                    const firstPreset = document.querySelector('.preset-card:not([data-preset="custom"])');
+                    if (firstPreset) {
+                        await new Promise(resolve => {
+                            firstPreset.addEventListener('click', resolve, { once: true });
+                            firstPreset.click();
+                        });
+                    }
+                    return;
+                }
+
+                // Convert saved personality to a normalized format
+                const savedTraits = new Map(
+                    data.personality.split(';').map(trait => {
+                        // Split "100% nik" into ["100", "nik"]
+                        const [percent, name] = trait.trim().split('%');
+                        return [name.trim(), parseInt(percent)];
+                    })
+                );
+
+                // Try to find matching preset first
+                const presetCards = document.querySelectorAll('.preset-card:not([data-preset="custom"])');
+                let matchingCard = null;
+
+                for (const card of presetCards) {
+                    const presetTraits = new Map(
+                        card.dataset.traits.split(',').map(trait => {
+                            // Split "nik:100" into ["nik", "100"]
+                            const [name, value] = trait.split(':');
+                            return [name.trim(), parseInt(value)];
+                        })
+                    );
+
+                    // Check if all preset traits match
+                    const isMatch = Array.from(presetTraits.entries()).every(([trait, value]) => {
+                        const savedValue = savedTraits.get(trait);
+                        return savedValue === value;
+                    });
+
+                    if (isMatch) {
+                        console.log('Found matching preset:', card.dataset.preset);
+                        matchingCard = card;
+                        break;
+                    }
+                }
+
+                if (matchingCard) {
+                    await new Promise(async resolve => {
+                        matchingCard.addEventListener('click', resolve, { once: true });
+                        matchingCard.click();
+
+                    });
+                } else {
+                    const customCard = document.querySelector('.preset-card[data-preset="custom"]');
+                    if (customCard) {
+                        customCard.dataset.traits = data.personality
+                            .split(';')
+                            .map(trait => {
+                                const [percent, name] = trait.trim().split('%');
+                                return `${name.trim()}:${percent.trim()}`;
+                            })
+                            .join(',');
+                        customCard.dataset.prompt = data.custominstruction;
+
+                        const traitsDiv = customCard.querySelector('.preset-traits');
+                        traitsDiv.innerHTML = data.personality
+                            .split(';')
+                            .map(trait => `<span>${trait.trim()}</span>`)
+                            .join('');
+
+                        await new Promise(resolve => {
+                            customCard.addEventListener('click', resolve, { once: true });
+                            customCard.click();
+                        });
+                    }
+                }
+                initialCharacter = false;
+                const airesponse = await sendTestMessage(
+                    "starter",
+                    matchingCard.dataset.traits,
+                    matchingCard.dataset.prompt,
+                    []
+                );
+                const chatMessages = document.querySelector('.chat-messages');
+                addMessage(airesponse, 'ai', chatMessages);
+                conversationHistory.push({ role: 'assistant', content: response });
+            } catch (error) {
+                console.error('Error loading character:', error);
+                const firstPreset = document.querySelector('.preset-card:not([data-preset="custom"])');
+                if (firstPreset) {
+                    await new Promise(resolve => {
+                        firstPreset.addEventListener('click', resolve, { once: true });
+                        firstPreset.click();
+                    });
+                }
+            } finally {
+                setTimeout(() => {
+                    document.querySelector('.personality-container').classList.remove('loading-blur');
+                    document.querySelector('.chat-interface').classList.remove('loading-blur');
+                }, 500);
+            }
+        }
+
+        // Add this function to handle missing images
+        function handleMissingImage(img) {
+            img.onerror = null; // Prevent infinite loop
+            img.src = `https://api.dicebear.com/7.x/personas/svg?seed=${img.alt || 'default'}`; // Use DiceBear API for placeholder
+        }
+
+        // Add this to your initialization code
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add error handlers to all profile images
+            document.querySelectorAll('.preset-card img, #selected-image').forEach(img => {
+                img.onerror = () => handleMissingImage(img);
+            });
+        });
+
+        async function saveCharacter() {
+            try {
+                const uid = getQueryParam('uid');
+                const selectedName = document.getElementById('selected-name').textContent.trim().toLowerCase();
+
+                // Debug logs to help identify the issue
+                console.log('Selected name:', selectedName);
+
+                // First try to find the exact preset card
+                let selectedCard = document.querySelector(`.preset-card[data-preset="${selectedName}"]`);
+                console.log('Found preset card:', selectedCard);
+
+                // If no preset card found, try to find by partial match
+                if (!selectedCard) {
+                    const allCards = document.querySelectorAll('.preset-card');
+                    selectedCard = Array.from(allCards).find(card =>
+                        card.querySelector('h4')?.textContent.trim().toLowerCase() === selectedName
+                    );
+                    console.log('Found card by name:', selectedCard);
+                }
+
+                if (!selectedCard) {
+                    throw new Error('Could not find selected character card');
+                }
+
+                // Get the values and log them
+                const prompt = selectedCard.getAttribute('data-prompt');
+                let personality = selectedCard.getAttribute('data-traits');
+                //current format: "chill:100,friendly:50"
+                //correct format for personality: "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep, 20% nik"
+                personality = personality.split(',').map(trait => {
+                    const [value, name] = trait.split(':');
+                    return `${name}% ${value}`;
+                }).join('; ');
+
+                console.log('Card data:', {
+                    prompt,
+                    personality,
+                    rawDataset: selectedCard.dataset,
+                    rawAttributes: selectedCard.getAttributeNames()
+                });
+
+
+
+                if (!prompt || !personality) {
+                    throw new Error(`Missing data - Prompt: ${!!prompt}, Personality: ${!!personality}`);
+                }
+
+
+
+                const response = await fetch(`/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        uid,
+                        custominstruction: prompt,
+                        personality
+                    })
+                });
+
+                if (response.ok) {
+                    showToast('Character saved successfully');
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to save character');
+                }
+            } catch (error) {
+                console.error('Error saving character:', error);
+                showToast('Failed to save character: ' + error.message, 'error');
+            }
+        }
+
+        // Add loadCharacter to your initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            getData();
+            setInterval(getData, 5000);
+            initializeDashboard();
+            loadCharacter(); // Add this line
+        });
+
+        async function sendTestMessage(message, traits, prompt, context = []) {
+            try {
+                const response = await fetch('/chat-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message,
+                        personality: traits,
+                        prompt,
+                        context: context.slice(-5)
+                    })
+                });
+                const data = await response.json();
+                return data.response;
+            } catch (error) {
+                console.error('Chat error:', error);
+                return 'Sorry, I encountered an error while processing your message.';
+            }
+        }
+    </script>
+</body>
+
+</html>
