@@ -8,7 +8,6 @@ const app = express();
 const mysql = require('mysql2/promise');
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const liteRouter = require("./index-lite");
 
 const dotenv = require("dotenv");
 dotenv.config();
@@ -67,13 +66,6 @@ try {
   process.exit(1);
 }
 
-// Function to inject pool into lite router middleware
-const injectPool = (pool, messageBuffer, createNotificationPrompt) => (req, res, next) => {
-    req.pool = pool;
-    req.messageBuffer = messageBuffer;
-    req.createNotificationPrompt = createNotificationPrompt;
-    next();
-};
 
 let previousDiscussions = [];
 let previousDiscusstionsFull = [];
@@ -400,13 +392,6 @@ app.post("/get", validateUID, async (req, res, next) => {
 const messageBuffer = new MessageBuffer();
 const ANALYSIS_INTERVAL = 30;
 
-// Mount lite version routes with injected dependencies
-app.use('/lite', (req, res, next) => {
-    req.pool = pool;
-    req.messageBuffer = messageBuffer;
-    req.createNotificationPrompt = createNotificationPrompt;
-    next();
-}, liteRouter);
 
 async function createNotificationPrompt(messages, uid, probabilitytorespond = 50) {
   let customInstruction = "";
