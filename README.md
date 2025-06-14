@@ -128,7 +128,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-All applications are licensed under the MIT License - see the LICENSE file in each application directory for details.
+All applications are licensed under the MIT License with Attribution Requirements - see the LICENSE file in each application directory for details.
+
+**Attribution Requirements:**
+- Any derivative works, modifications, or distributions must prominently credit Neo (github.com/neooriginal)
+- Credit must be visible in user-facing documentation, about pages, or similar locations
+- Credit must include a link to the original repository or author's GitHub profile
 
 ## Disclaimer
 
