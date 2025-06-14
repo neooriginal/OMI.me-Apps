@@ -8,25 +8,18 @@ const express = require('express');
 const OpenAI = require('openai');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const mysql = require('mysql2/promise');
+const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
 const sanitizeHtml = require('sanitize-html');
 const { URL } = require('url');
 const fetch = require('node-fetch');
 
-
-// Create a connection pool
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+);
 
 // Generic error handler to prevent leaking sensitive info
 function handleDatabaseError(error, operation) {
@@ -37,45 +30,13 @@ function handleDatabaseError(error, operation) {
     };
 }
 
-// Initialize database tables
+// Initialize database tables - Supabase tables should be created in the dashboard
 async function createTables() {
-    try {
-        await pool.execute(`
-            CREATE TABLE IF NOT EXISTS brain_users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                uid VARCHAR(255) UNIQUE
-            )
-        `);
-
-        await pool.execute(`
-            CREATE TABLE IF NOT EXISTS memory_nodes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                uid VARCHAR(255),
-                node_id VARCHAR(255),
-                type VARCHAR(50),
-                name TEXT,
-                connections INT DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE KEY unique_node (uid, node_id),
-                FOREIGN KEY (uid) REFERENCES brain_users(uid)
-            )
-        `);
-
-        await pool.execute(`
-            CREATE TABLE IF NOT EXISTS memory_relationships (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                uid VARCHAR(255),
-                source VARCHAR(255),
-                target VARCHAR(255),
-                action TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (uid) REFERENCES brain_users(uid)
-            )
-        `);
-    } catch (err) {
-        const result = handleDatabaseError(err, 'table creation');
-        console.error('Error creating tables:', result.error);
-    }
+    console.log('Supabase tables should be created via the dashboard or migrations.');
+    // Tables to create in Supabase:
+    // 1. brain_users (id: uuid, uid: text, created_at: timestamp)
+    // 2. memory_nodes (id: uuid, uid: text, node_id: text, type: text, name: text, connections: int, created_at: timestamp)
+    // 3. memory_relationships (id: uuid, uid: text, source: text, target: text, action: text, created_at: timestamp)
 }
 
 createTables().catch(console.error);
@@ -100,9 +61,6 @@ app.get("/privacy", (req, res) => {
     res.sendFile(__dirname + '/public/privacy.html');
 });
 
-
-
-
 // Load memory graph from database
 async function loadMemoryGraph(uid) {
     const nodes = new Map();
@@ -110,10 +68,10 @@ async function loadMemoryGraph(uid) {
 
     try {
         // Load nodes
-        const [dbNodes] = await pool.execute(
-            'SELECT * FROM memory_nodes WHERE uid = ? ORDER BY created_at DESC',
-            [uid]
-        );
+        const { data: dbNodes } = await supabase
+            .from('memory_nodes')
+            .select()
+            .eq('uid', uid);
 
         dbNodes.forEach(node => {
             nodes.set(node.node_id, {
@@ -125,10 +83,10 @@ async function loadMemoryGraph(uid) {
         });
 
         // Load relationships
-        const [dbRelationships] = await pool.execute(
-            'SELECT * FROM memory_relationships WHERE uid = ? ORDER BY created_at DESC',
-            [uid]
-        );
+        const { data: dbRelationships } = await supabase
+            .from('memory_relationships')
+            .select()
+            .eq('uid', uid);
 
         relationships.push(...dbRelationships.map(rel => ({
             source: rel.source,
@@ -145,38 +103,37 @@ async function loadMemoryGraph(uid) {
 
 // Save memory graph to database
 async function saveMemoryGraph(uid, newData) {
-    const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
-
-        // Ensure user exists
-        await connection.execute(
-            'INSERT INTO brain_users (uid) VALUES (?) ON DUPLICATE KEY UPDATE uid = uid',
-            [uid]
-        );
-
         // Save new nodes
         for (const entity of newData.entities) {
-            await connection.execute(
-                'INSERT INTO memory_nodes (uid, node_id, type, name) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE connections = connections + 1',
-                [uid, entity.id, entity.type, entity.name]
-            );
+            await supabase
+                .from('memory_nodes')
+                .upsert([
+                    {
+                        uid: uid,
+                        node_id: entity.id,
+                        type: entity.type,
+                        name: entity.name,
+                        connections: entity.connections
+                    }
+                ]);
         }
 
         // Save new relationships
         for (const rel of newData.relationships) {
-            await connection.execute(
-                'INSERT INTO memory_relationships (uid, source, target, action) VALUES (?, ?, ?, ?)',
-                [uid, rel.source, rel.target, rel.action]
-            );
+            await supabase
+                .from('memory_relationships')
+                .upsert([
+                    {
+                        uid: uid,
+                        source: rel.source,
+                        target: rel.target,
+                        action: rel.action
+                    }
+                ]);
         }
-
-        await connection.commit();
     } catch (error) {
-        await connection.rollback();
         throw error;
-    } finally {
-        connection.release();
     }
 }
 
@@ -383,10 +340,13 @@ app.post("/api/auth/login", async (req, res) => {
         }
 
         // For all users, create or update record without restrictions
-        await pool.execute(
-            'INSERT INTO brain_users (uid) VALUES (?) ON DUPLICATE KEY UPDATE uid = uid',
-            [uid]
-        );
+        await supabase
+            .from('brain_users')
+            .upsert([
+                {
+                    uid: uid
+                }
+            ]);
 
         res.json({ success: true });
     } catch (error) {
@@ -399,10 +359,10 @@ app.post("/api/auth/login", async (req, res) => {
 app.get('/api/profile', requireAuth, async (req, res) => {
     try {
         const { uid } = req.query;
-        const [rows] = await pool.execute(
-            'SELECT * FROM brain_users WHERE uid = ?',
-            [uid]
-        );
+        const { data: rows } = await supabase
+            .from('brain_users')
+            .select()
+            .eq('uid', uid);
 
         if (rows && rows.length > 0) {
             res.json({
@@ -416,7 +376,6 @@ app.get('/api/profile', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Error fetching profile' });
     }
 });
-
 
 app.get("/setup", async (req, res) => {
     res.json({ 'is_setup_completed': true });
@@ -432,10 +391,14 @@ app.put('/api/node/:nodeId', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        await pool.execute(
-            'UPDATE memory_nodes SET name = ?, type = ? WHERE uid = ? AND node_id = ?',
-            [name, type, uid, nodeId]
-        );
+        await supabase
+            .from('memory_nodes')
+            .update({
+                name: name,
+                type: type
+            })
+            .eq('uid', uid)
+            .eq('node_id', nodeId);
 
         // Get updated memory graph
         const memoryGraph = await loadMemoryGraph(uid);
@@ -453,30 +416,25 @@ app.put('/api/node/:nodeId', requireAuth, async (req, res) => {
 
 // Delete node endpoint
 app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
-    const connection = await pool.getConnection();
+    const { nodeId } = req.params;
+    const { uid } = req.query;
+
+    if (!uid) {
+        return res.status(400).json({ error: 'User ID is required' });
+    }
+
     try {
-        const { nodeId } = req.params;
-        const { uid } = req.query;
+        await supabase
+            .from('memory_relationships')
+            .delete()
+            .eq('uid', uid)
+            .or(`source.eq.${nodeId},target.eq.${nodeId}`);
 
-        if (!uid) {
-            return res.status(400).json({ error: 'User ID is required' });
-        }
-
-        await connection.beginTransaction();
-
-        // Delete relationships first
-        await connection.execute(
-            'DELETE FROM memory_relationships WHERE uid = ? AND (source = ? OR target = ?)',
-            [uid, nodeId, nodeId]
-        );
-
-        // Then delete the node
-        await connection.execute(
-            'DELETE FROM memory_nodes WHERE uid = ? AND node_id = ?',
-            [uid, nodeId]
-        );
-
-        await connection.commit();
+        await supabase
+            .from('memory_nodes')
+            .delete()
+            .eq('uid', uid)
+            .eq('node_id', nodeId);
 
         // Get updated memory graph
         const memoryGraph = await loadMemoryGraph(uid);
@@ -487,11 +445,8 @@ app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
 
         res.json(visualizationData);
     } catch (error) {
-        await connection.rollback();
         console.error('Error deleting node:', error);
         res.status(500).json({ error: 'Error deleting node' });
-    } finally {
-        connection.release();
     }
 });
 
@@ -562,8 +517,6 @@ function getRandomElement(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
-
-
 // Get current memory graph
 app.get('/api/memory-graph', requireAuth, async (req, res) => {
     try {
@@ -623,35 +576,26 @@ app.post('/api/process-text', requireAuth, async (req, res) => {
 
 // Delete all user data
 async function deleteAllUserData(uid) {
-    const connection = await pool.getConnection();
     try {
-        await connection.beginTransaction();
+        await supabase
+            .from('memory_relationships')
+            .delete()
+            .eq('uid', uid);
 
-        // Delete relationships first (due to foreign key constraints)
-        await connection.execute(
-            'DELETE FROM memory_relationships WHERE uid = ?',
-            [uid]
-        );
+        await supabase
+            .from('memory_nodes')
+            .delete()
+            .eq('uid', uid);
 
-        // Delete memory nodes
-        await connection.execute(
-            'DELETE FROM memory_nodes WHERE uid = ?',
-            [uid]
-        );
+        await supabase
+            .from('brain_users')
+            .delete()
+            .eq('uid', uid);
 
-        await connection.execute(
-            'DELETE FROM brain_users WHERE uid = ?',
-            [uid]
-        );
-
-        await connection.commit();
         return true;
     } catch (error) {
-        await connection.rollback();
         console.error('Error deleting user data:', error);
         throw error;
-    } finally {
-        connection.release();
     }
 }
 
@@ -670,7 +614,6 @@ app.post('/api/delete-all-data', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete data' });
     }
 });
-
 
 // Input validation middleware
 const validateInput = (req, res, next) => {

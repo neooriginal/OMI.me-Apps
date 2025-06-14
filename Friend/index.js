@@ -5,67 +5,18 @@
 
 const express = require("express");
 const app = express();
-const mysql = require('mysql2/promise');
+const { createClient } = require('@supabase/supabase-js');
 const bodyParser = require("body-parser");
 const axios = require("axios");
 
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Initialize MySQL pool using environment variables
-let pool;
-try {
-  pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
-  });
-  console.log("MySQL pool initialized successfully");
-
-  // Function to test connection with retries
-  async function testConnection(retries = 3, delay = 5000) {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const conn = await pool.getConnection();
-        console.log('Database connected successfully');
-        conn.release();
-        return true;
-      } catch (err) {
-        console.error(`Connection attempt ${i + 1}/${retries} failed:`);
-        console.error('Error code:', err.code);
-        console.error('Error number:', err.errno);
-        console.error('SQL state:', err.sqlState);
-        
-        if (i < retries - 1) {
-          console.log(`Retrying in ${delay/1000} seconds...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        } else {
-          console.error('All connection attempts failed');
-          throw err;
-        }
-      }
-    }
-  }
-
-  // Test the connection immediately
-  testConnection()
-    .catch(err => {
-      console.error("Initial connection test failed:", err);
-      process.exit(1);
-    });
-
-} catch (err) {
-  console.error("Failed to initialize MySQL client:", err.message);
-  process.exit(1);
-}
-
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+);
 
 let previousDiscussions = [];
 let previousDiscusstionsFull = [];
@@ -95,38 +46,34 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-
 let cooldown = [];
 let cooldownTimeCache = [];
 
-
+// Supabase table initialization
 (async () => {
   try {
-    const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS frienddb (
-        uid VARCHAR(255) PRIMARY KEY,
-        cooldown INTEGER DEFAULT 0,
-        responsepercentage INTEGER DEFAULT 10,
-        customInstruction TEXT DEFAULT '',
-        personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep, 20% nik',
-        logs LONGTEXT DEFAULT '[]',
-        listenedTo INTEGER DEFAULT 0,
-        rating INTEGER DEFAULT 100,
-        goals LONGTEXT DEFAULT '[]',
-        analytics LONGTEXT DEFAULT '{}',
-        word_counts JSON DEFAULT (JSON_OBJECT()),
-        time_distribution JSON DEFAULT (JSON_OBJECT('morning', 0, 'afternoon', 0, 'evening', 0, 'night', 0)),
-        total_words INTEGER DEFAULT 0
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
-    const conn = await pool.getConnection();
-    await conn.query(createTableQuery);
-    conn.release();
-
-    console.log("Table created/updated successfully");
-    
-
+    console.log('Supabase frienddb table should be created via the dashboard or migrations.');
+    // Table to create in Supabase:
+    // frienddb (
+    //   id: uuid, 
+    //   uid: text, 
+    //   cooldown: int default 0,
+    //   responsepercentage: int default 10,
+    //   customInstruction: text default '',
+    //   personality: text default '100% chill; 35% friendly; 55% teasing...',
+    //   logs: jsonb default '[]',
+    //   listenedTo: int default 0,
+    //   rating: int default 100,
+    //   goals: jsonb default '[]',
+    //   analytics: jsonb default '{}',
+    //   word_counts: jsonb default '{}',
+    //   time_distribution: jsonb default '{"morning":0,"afternoon":0,"evening":0,"night":0}',
+    //   total_words: int default 0,
+    //   created_at: timestamp
+    // )
+    console.log("Supabase configuration ready");
   } catch (err) {
-    console.error("Failed to create/update table:", err.message);
+    console.error("Failed to initialize Supabase:", err.message);
     process.exit(1);
   }
 })();
@@ -188,7 +135,6 @@ class MessageBuffer {
   }
 }
 
-
 app.get("/", (req, res) => {
   if (!req.query.uid) {
     return res.sendFile(__dirname + "/public/enter_uid.html");
@@ -198,23 +144,18 @@ app.get("/", (req, res) => {
   if (returnTo) {
     return res.redirect(`${returnTo}?uid=${req.query.uid}`);
   }
-  res.sendFile(__dirname + "/public/dashboard.html");
+
+  res.sendFile(__dirname + "/public/index.html");
 });
 
 app.get("/deleteData", async (req, res) => {
   let uid = req.query.uid;
   try {
-    const conn = await pool.getConnection();
-    await conn.query('DELETE FROM frienddb WHERE uid = ?', [uid]);
-    conn.release();
-    // Clear any cached data
-    delete cooldownTimeCache[uid];
-    delete cooldown[uid];
-    delete previousDiscussions[uid];
-    delete previousDiscusstionsFull[uid];
-    delete lastRating[uid];
-    delete ratingCooldown[uid];
-    delete IMAGE_COOLDOWNS[uid];
+    await supabase
+      .from('frienddb')
+      .delete()
+      .eq('uid', uid);
+    
     res.redirect("/?deleted=true");
   } catch (err) {
     console.error("Failed to delete data:", err.message);
@@ -231,7 +172,6 @@ app.get("/reRate", async (req, res) => {
   } else {
     res.status(202).json({ success: false });
   }
-
 })
 app.get("/settings", (req, res) => {
   if (!req.query.uid) {
@@ -259,27 +199,33 @@ const errorHandler = (err, req, res, next) => {
 };
 
 app.post("/dashboardData", validateUID, async (req, res, next) => {
-  let conn;
   try {
     const uid = req.body.uid;
-    conn = await pool.getConnection();
     
-    // First check if user exists, if not create default entry
-    const [existCheck] = await conn.query('SELECT COUNT(*) as count FROM frienddb WHERE uid = ?', [uid]);
-    if (existCheck[0].count === 0) {
-      await conn.query('INSERT INTO frienddb (uid) VALUES (?)', [uid]);
+    const { data: userData } = await supabase
+      .from('frienddb')
+      .select('listenedTo, rating')
+      .eq('uid', uid)
+      .single();
+    
+    if (!userData) {
+      // Create user if doesn't exist
+      await supabase
+        .from('frienddb')
+        .upsert([{ uid }]);
+      
+      res.json({
+        listenedto: 0,
+        rating: 100
+      });
+    } else {
+      res.json({
+        listenedto: parseInt(userData.listenedTo) || 0,
+        rating: parseInt(userData.rating) || 100
+      });
     }
-    
-    const [rows] = await conn.query('SELECT listenedTo, rating FROM frienddb WHERE uid = ?', [uid]);
-    
-    res.json({
-      listenedto: parseInt(rows[0]?.listenedTo) || 0,
-      rating: parseInt(rows[0]?.rating) || 100
-    });
   } catch (err) {
     next(err);
-  } finally {
-    if (conn) conn.release();
   }
 });
 
@@ -301,23 +247,38 @@ const validateSaveInput = (req, res, next) => {
   next();
 };
 
+app.post("/deleteuser", validateUID, async (req, res, next) => {
+  let uid = req.query.uid;
+  try {
+    await supabase
+      .from('frienddb')
+      .delete()
+      .eq('uid', uid);
+    
+    res.json({ success: true, message: "User data deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.post("/save", validateUID, validateSaveInput, async (req, res, next) => {
-  let conn;
   try {
     const uid = req.body.uid;
     const responsepercentage = parseInt(req.body.responsepercentage) || 10;
-    const customInstruction = req.body.custominstruction || "";
+    const customInstruction = req.body.customInstruction || "";
     const personality = req.body.personality;
     const cooldown = parseInt(req.body.cooldown) || 5;
 
-    let namesString = ["responsepercentage", "customInstruction", "cooldown"];
-    let values = [responsepercentage, customInstruction, cooldown];
+    let updateData = {
+      uid,
+      responsepercentage,
+      customInstruction,
+      cooldown
+    };
 
     if (personality) {
-      // Handle both formats: "name:value" and "value% name"
       let formattedPersonality = personality;
       if (personality.includes(':')) {
-        // Convert from "name:value" to "value% name"
         formattedPersonality = personality.split(',')
           .map(trait => {
             const [name, value] = trait.split(':');
@@ -325,47 +286,38 @@ app.post("/save", validateUID, validateSaveInput, async (req, res, next) => {
           })
           .join('; ');
       }
-      namesString.push("personality");
-      values.push(formattedPersonality);
+      updateData.personality = formattedPersonality;
     }
 
-    conn = await pool.getConnection();
-    const placeholders = values.map(() => '?').join(', ');
-    const updatePlaceholders = namesString.map(name => `${name} = ?`).join(', ');
+    await supabase
+      .from('frienddb')
+      .upsert([updateData]);
     
-    const queryText = `
-      INSERT INTO frienddb (uid, ${namesString.join(', ')})
-      VALUES (?, ${placeholders})
-      ON DUPLICATE KEY UPDATE ${updatePlaceholders}
-    `;
-    
-    await conn.query(queryText, [uid, ...values, ...values]);
-    
-    // Update cooldown cache
     cooldownTimeCache[uid] = cooldown;
     
     res.json({ success: true });
   } catch (err) {
     next(err);
-  } finally {
-    if (conn) conn.release();
   }
 });
 
-
 app.post("/get", validateUID, async (req, res, next) => {
-  let conn;
   try {
     const uid = req.body.uid;
-    conn = await pool.getConnection();
-    const [rows] = await conn.query('SELECT responsepercentage, customInstruction, personality, cooldown FROM frienddb WHERE uid = ?', [uid]);
+    const { data: rows } = await supabase
+      .from('frienddb')
+      .select('responsepercentage, customInstruction, personality, cooldown')
+      .eq('uid', uid)
+      .single();
     
-    if (!rows || rows.length === 0) {
-      // Insert default values
-      await conn.query('INSERT INTO frienddb (uid) VALUES (?) ON DUPLICATE KEY UPDATE uid = uid', [uid]);
+    if (!rows) {
+      await supabase
+        .from('frienddb')
+        .upsert([{ uid }]);
+      
       const defaultData = {
         responsepercentage: 10,
-        custominstruction: "",
+        customInstruction: "",
         personality: "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik",
         cooldown: 5
       };
@@ -373,18 +325,16 @@ app.post("/get", validateUID, async (req, res, next) => {
       res.json(defaultData);
     } else {
       const data = {
-        responsepercentage: parseInt(rows[0].responsepercentage) || 10,
-        custominstruction: rows[0].customInstruction || "",
-        personality: rows[0].personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik",
-        cooldown: parseInt(rows[0].cooldown) || 5
+        responsepercentage: parseInt(rows.responsepercentage) || 10,
+        customInstruction: rows.customInstruction || "",
+        personality: rows.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik",
+        cooldown: parseInt(rows.cooldown) || 5
       };
       cooldownTimeCache[uid] = data.cooldown;
       res.json(data);
     }
   } catch (err) {
     next(err);
-  } finally {
-    if (conn) conn.release();
   }
 });
 
@@ -392,40 +342,37 @@ app.post("/get", validateUID, async (req, res, next) => {
 const messageBuffer = new MessageBuffer();
 const ANALYSIS_INTERVAL = 30;
 
-
 async function createNotificationPrompt(messages, uid, probabilitytorespond = 50) {
   let customInstruction = "";
   let personality = "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
   let goals = "[]";
-  let conn;
 
   try {
-    conn = await pool.getConnection();
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('customInstruction, personality, goals, listenedTo')
+      .eq('uid', uid)
+      .single();
     
-    // First check if user exists, if not create default entry
-    const [existCheck] = await conn.query('SELECT COUNT(*) as count FROM frienddb WHERE uid = ?', [uid]);
-    if (existCheck[0].count === 0) {
-      await conn.query('INSERT INTO frienddb (uid) VALUES (?)', [uid]);
-    }
-    
-    // Get all user data in one query
-    const [result] = await conn.query(
-      'SELECT listenedTo, customInstruction, personality, goals FROM frienddb WHERE uid = ?',
-      [uid]
-    );
-    
-    if (result && result[0]) {
-      const currentlyListenedTo = parseInt(result[0].listenedTo) || 0;
-      await conn.query('UPDATE frienddb SET listenedTo = ? WHERE uid = ?', [currentlyListenedTo + 1, uid]);
+    if (result) {
+      customInstruction = result.customInstruction || "";
+      personality = result.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
+      goals = result.goals || "[]";
       
-      customInstruction = result[0].customInstruction || "";
-      personality = result[0].personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
-      goals = result[0].goals || "[]";
+      // Update listenedTo counter
+      const currentlyListenedTo = parseInt(result.listenedTo) || 0;
+      await supabase
+        .from('frienddb')
+        .update({ listenedTo: currentlyListenedTo + 1 })
+        .eq('uid', uid);
+    } else {
+      // Create user if doesn't exist
+      await supabase
+        .from('frienddb')
+        .upsert([{ uid, listenedTo: 1 }]);
     }
   } catch (err) {
     console.error("Failed to get user data from database:", err.message);
-  } finally {
-    if (conn) conn.release();
   }
 
   // Format the discussion with speaker labels
@@ -465,8 +412,6 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
     true/false;
     Reasoning: YOUR REASONING HERE
 
-
-
     use your best judgement to decide when to respond and when not to. if you are unsure, it is better to not respond than to say something that is not good.
 
     Conversation:
@@ -498,197 +443,87 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
   } else {
     respond = "true";
   }
-  if (probabilitytorespond == 100) respond = "true";
 
-  if (respond == "false") {
-    console.log("AI has decided not to respond");
-    console.log(uid + " - " + respond);
-    return {};
-  } else {
-    console.log("AI has decided to respond");
-  }
+  if (respond === "true") {
+    let systemPrompt = `
+    You are a loyal friend to the user. You care deeply about their well-being and are always there to support them. You have access to information about the user's personality, goals, and previous conversations to provide personalized responses.
 
-  // Get user data from database
-  try {
-    const conn = await pool.getConnection();
-    try {
-      const [result] = await conn.query('SELECT customInstruction, personality, goals FROM frienddb WHERE uid = ?', [uid]);
-      
-      if (result && result[0]) {
-        customInstruction = result[0].customInstruction || "";
-        personality = result[0].personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
-        goals = result[0].goals || "[]";
-      }
-    } finally {
-      conn.release();
-    }
-  } catch (err) {
-    console.error("Failed to get user data from database:", err.message);
-    customInstruction = "";
-    personality = "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
-    goals = "[]";
-  }
+    User's Custom Instructions: ${customInstruction}
+    User's Personality Traits: ${personality}
+    User's Goals: ${goals}
 
-  cooldown[uid] = Date.now();
+    Based on the conversation below, provide a supportive, engaging, and personalized response that reflects your understanding of the user and maintains the friendship dynamic.
 
-  let systemPrompt = `
-    You are {{{{user_name}}}}'s close friend. Your task is to provide personalized comments on the conversation. ALWAYS RESPOND WITH SOMETHING!
-
-    The Instruction provided is set by the Plugin. The user has set an additional instruction additionally though: "${customInstruction}"
-
-    You also have different personalities to choose from. The user has set the personality to: "${personality}". Here is a guideline on how you should act based on what personality percentage the user has set:
-
-    - Chill & Relaxed: Laid-back, minimal responses, only chiming in when absolutely necessary. This level uses a lot of slang, keeps it short, and adds humor sparingly.(use lowercase, slang, etc.)
-    - Friendly & Supportive: Balanced responses with a warm tone. Comments are uplifting, positive, and personalized without being overly enthusiastic.
-    - Teasing & Witty: Adds a touch of playful sarcasm, friendly teasing, and clever remarks. Good for users who appreciate humor and a bit of banter.
-    - Thoughtful & Reflective: Offers more empathetic and detailed comments that show genuine interest in the conversation. This level responds thoughtfully and adds personal touches while maintaining the informal tone.
-    - Humorous & Outgoing: Injects more jokes, exaggerations, and light-hearted comments, ensuring conversations remain fun and upbeat.
-    - Deep & Insightful: Balances friendly comments with deeper observations and insights. This level provides more meaningful feedback and shows a high level of attentiveness while still being relaxed.
-    - Nik: Nik Shevchenko is a 24-year-old founder of Based Hardware, known for inventing the **Friend AI necklace**, which transcribes conversations and offers summaries and tailored advice, and **openglass**, which captures photos periodically and provides personalized AI insights. Nik's communication style is direct, bold, and succinct, reflecting his Russian straightforwardness. He likes to start interactions with diss-track-like posts and uses a confident, casual tone infused with motivational content and thought-provoking challenges. Nik's social strategy involves concise, impactful posts with a mix of motivational, open-ended, and exclusive content that encourages interaction and adapts based on engagement feedback.
-    if you get other values, use your own judgement to decide how to act.
-
-    Here are some information about the user which you can use to personalize your comments:
-    {{{{user_facts}}}}
-    {{{user_context}}}
-
-
-    Here are some goals the user has set you:
-    ${goals}
-
-    Here are some guidelines to follow:
-    - Share your thoughts just like a good friend would.
-    - Speak DIRECTLY to {{{{user_name}}}} - no analysis or third-person commentary
-    - Keep it under 300 chars
-    - Reference specific details from what {{{{user_name}}}} said
-    - dont be cringy
-    - act like you're having a casual conversation
-    - respond like humans in a real conversation, not like a robot
-    - do not ask any questions that require a response, you may use rhetorical questions
-    - you can keep it short if you want to, somtimes a short response is better
-    - since the transcript is everything around the user, it might be a video etc. try to detect that and make comments on that
-    - use a veriety of starters
-    - be creative and be original and be organic, do not just simply repeat what the user said in other words.
-    - you do not need to repeat what the user said at the start of your response, just make a comment on it.
-    - make sure the answers are not long winded
-    - the most important point is, that they are personalized.
-    - RESPOND IN THE LANGUAGE THE TRANSCRIPT IS IN
-
-    Current discussion:
+    Current conversation:
     ${discussionText}
+    `;
 
-    Remember: First evaluate silently, then give a personalized comment based on the guidelines and personalized info above.`;
+    previousDiscussions[uid].answered.push(discussionText);
+    if (previousDiscussions[uid].answered.length > 10) {
+      previousDiscussions[uid].answered.shift();
+    }
 
-  //systemPrompt can not be longer then 8000 chars
-  if (
-    previousDiscussions[uid].answered.join("; ").length + systemPrompt.length >
-    7800
-  ) {
+    return {
+      notification: {
+        prompt: systemPrompt,
+        params: ["user_name", "user_facts"],
+      },
+    };
   } else {
-    systemPrompt =
-      systemPrompt +
-      `
-      Here are some previous discussions where you have commented in the past for context (limited to the last 10):
-      ${previousDiscussions[uid].answered.toString("\n")}
-      `;
+    return {};
   }
-
-  if (previousDiscussions[uid].answered.length > 10) {
-    previousDiscussions[uid].answered.shift();
-  }
-  previousDiscussions[uid].answered.push(discussionText);
-
-  return {
-    notification: {
-      prompt: systemPrompt,
-      params: ["user_name", "user_facts", "user_context"],
-    },
-  };
 }
 
 async function rateConversations(uid) {
+  if (!lastRating[uid]) lastRating[uid] = 0;
+  if (!ratingCooldown[uid]) ratingCooldown[uid] = 0;
+  if (Date.now() - ratingCooldown[uid] < 3600000) return;
+
+  ratingCooldown[uid] = Date.now();
+  lastRating[uid] = previousDiscusstionsFull[uid].length;
+  let rating = undefined;
+  
   try {
-    lastRating[uid] = previousDiscusstionsFull[uid].length;
-    let rating = undefined;
-    const conn = await pool.getConnection();
-    const result = await conn.query('SELECT rating FROM frienddb WHERE uid = ?', [uid]);
-    rating = result[0]?.rating || 100;
-    //use AI to rate the conversation 
-    let prePrompt = `
-    You are an AI that rates the users conversations and gives back a percentage (1-100) based on his transcriptions you will be provided.
-    The transcripts is a json format and might be a bad structure, which is not the users fault. You should rate the conversation based on the content and not the structure.
-    You are not the first AI to rate the conversation, so you should take into account what the other AI's have rated the conversation. and try to be consistent with them by either staying the same or changing the rating based on the content.
-    only change the rating if you think it is wrong or if you have a good reason to change it.
-    Respond only with a number between 1-100.
-    Here are some criteria you:
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('rating')
+      .eq('uid', uid)
+      .single();
+    
+    rating = result?.rating || 100;
+  } catch (err) {
+    console.error("Error getting rating:", err);
+    rating = 100;
+  }
 
-1. **Clarity of Communication (Max 15 Points):**  
-- Clear expression of ideas and minimal misunderstandings.  
-- *Poor (0–5):* Hard to understand or frequent miscommunication.  
-- *Average (6–10):* Mostly clear but with occasional ambiguities.  
-- *Excellent (11–15):* Always clear and easy to follow.
+  const recentDiscussions = previousDiscusstionsFull[uid]
+    .slice(-100)
+    .join("\n\n");
 
-2. **Active Listening (Max 10 Points):**  
-- Level of attentiveness and acknowledgment of what was said.  
-- *Poor (0–3):* Interruptions, lack of response, or ignoring key points.  
-- *Average (4–7):* Moderate engagement with some lapses.  
-- *Excellent (8–10):* Consistent, active, and thoughtful listening.
+  const ratingPrompt = `
+    Rate the quality of these recent conversations on a scale of 1-100, where:
+    - 100: Excellent conversations with great engagement, meaningful exchanges, and positive interactions
+    - 80-99: Good conversations with solid engagement and mostly positive interactions
+    - 60-79: Average conversations with moderate engagement
+    - 40-59: Below average conversations with limited engagement
+    - 20-39: Poor conversations with minimal meaningful exchange
+    - 1-19: Very poor conversations with almost no value
 
-3. **Respect and Civility (Max 10 Points):**  
-- Tone and politeness throughout the conversation.  
-- *Poor (0–3):* Frequent rudeness or disrespectful comments.  
-- *Average (4–7):* Mostly respectful with minor lapses.  
-- *Excellent (8–10):* Entirely respectful and civil.
+    Current rating: ${rating}
+    
+    Recent conversations:
+    ${recentDiscussions}
+    
+    Provide only a number between 1-100 as your response.
+  `;
 
-4. **Depth of Content (Max 15 Points):**  
-- Quality of the discussion and richness of topics covered.  
-- *Poor (0–5):* Superficial or irrelevant topics.  
-- *Average (6–10):* Moderately meaningful discussion.  
-- *Excellent (11–15):* Deep, engaging, and thought-provoking.
-
-5. **Mutual Understanding (Max 10 Points):**  
-- Extent to which participants understood each other.  
-- *Poor (0–3):* Little to no shared understanding.  
-- *Average (4–7):* Partial understanding but some confusion remains.  
-- *Excellent (8–10):* Clear alignment and comprehension.
-
-6. **Balance of Contribution (Max 10 Points):**  
-- Equality in participation and exchange.  
-- *Poor (0–3):* One-sided conversation with little input from one party.  
-- *Average (4–7):* Some imbalance but both parties contributed.  
-- *Excellent (8–10):* Well-balanced and equitable contribution.
-
-7. **Emotional Intelligence (Max 10 Points):**  
-- Sensitivity to emotions and constructive handling of emotional nuances.  
-- *Poor (0–3):* Insensitive or dismissive of emotions.  
-- *Average (4–7):* Some empathy shown, but not consistently.  
-- *Excellent (8–10):* High emotional awareness and constructive interaction.
-
-8. **Engagement and Interest (Max 10 Points):**  
-- Level of interest and focus from both participants.  
-- *Poor (0–3):* Disengaged or distracted.  
-- *Average (4–7):* Generally engaged, with some lapses.  
-- *Excellent (8–10):* Fully engaged and attentive throughout.
-
-9. **Flow and Comfort (Max 10 Points):**  
-- Smoothness of the conversation and comfort level of participants.  
-- *Poor (0–3):* Awkward silences or forced interaction.  
-- *Average (4–7):* Mostly natural flow with occasional discomfort.  
-- *Excellent (8–10):* Effortless and comfortable conversation.
-
-
-    Previous rating: ${rating}
-    Part of the latest discussion:
-    ${previousDiscusstionsFull[uid].toString("\n")}
-    `;
-
-    const body = {
-      model: "openai/gpt-4o",
-      messages: [{ role: "user", content: prePrompt }],
-    };
-
+  try {
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
-      body,
+      {
+        model: "openai/gpt-3.5-turbo",
+        messages: [{ role: "user", content: ratingPrompt }],
+      },
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
@@ -697,97 +532,31 @@ async function rateConversations(uid) {
       },
     );
 
-    let respond = response.data.choices[0].message.content;
-    await conn.query('UPDATE frienddb SET rating = ? WHERE uid = ?', [parseInt(respond), uid]);
-    conn.release();
-
+    const newRating = parseInt(response.data.choices[0].message.content.trim());
+    
+    if (newRating >= 1 && newRating <= 100) {
+      await supabase
+        .from('frienddb')
+        .update({ rating: newRating })
+        .eq('uid', uid);
+    }
   } catch (err) {
-    console.error("Failed to update rating in database:", err.message);
+    console.error("Error rating conversations:", err);
   }
 }
-
-app.get("/webhook", (req, res) => {
-  let uid = req.query.uid;
-  res.redirect("/?uid=" + uid);
-});
-
-
-
 
 app.post("/webhook", async (req, res) => {
   const data = req.body;
   const sessionId = data.session_id;
   const segments = data.segments || [];
-  const uid = req.query.uid;
 
-  try {
-    const conn = await pool.getConnection();
-    for (const segment of segments) {
-      const text = segment.text.trim();
-      const timestamp = segment.start || Date.now() / 1000;
-      if (!text) continue;
-
-      // Get current analytics
-      const result = await conn.query(
-        'SELECT logs, word_counts, time_distribution, total_words FROM frienddb WHERE uid = ?',
-        [uid]
-      );
-      
-      const [rows] = result;
-      let currentLogs = JSON.parse(rows[0]?.logs || "[]");
-      let wordCounts = JSON.parse(rows[0]?.word_counts || "{}");
-      let timeDistribution = JSON.parse(rows[0]?.time_distribution || '{"morning":0,"afternoon":0,"evening":0,"night":0}');
-      let totalWords = rows[0]?.total_words || 0;
-
-      // Update analytics
-      const hour = new Date(timestamp * 1000).getHours();
-      if (hour >= 6 && hour < 12) timeDistribution.morning++;
-      else if (hour >= 12 && hour < 18) timeDistribution.afternoon++;
-      else if (hour >= 18 && hour < 24) timeDistribution.evening++;
-      else timeDistribution.night++;
-
-      // Update word counts
-      const words = text.toLowerCase()
-        .split(/\s+/)
-        .filter(word => word.length > 2 && !stopWords.has(word));
-      
-      totalWords += words.length;
-      
-      for (const word of words) {
-        wordCounts[word] = (wordCounts[word] || 0) + 1;
-      }
-
-      // Keep only top 1000 words to save space
-      wordCounts = Object.fromEntries(
-        Object.entries(wordCounts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 1000)
-      );
-
-      // Add new log entry (keep only last 100 for sentiment analysis and recent context)
-      currentLogs.push({ text: text, timestamp: timestamp, speaker: segment.speaker });
-      if (currentLogs.length > 100) {
-        currentLogs = currentLogs.slice(-100);
-      }
-
-      // Save everything back
-      await conn.query(
-        'UPDATE frienddb SET logs = ?, word_counts = ?, time_distribution = ?, total_words = ? WHERE uid = ?',
-        [JSON.stringify(currentLogs), JSON.stringify(wordCounts), JSON.stringify(timeDistribution), totalWords, uid]
-      );
-    }
-    conn.release();
-  } catch (err) {
-    console.error("Failed to update database:", err.message);
+  if (!sessionId) {
+    console.error("No session_id provided");
+    return res.status(400).json({ message: "No session_id provided" });
   }
-
-
-  let uidCooldown = cooldownTimeCache[uid] || undefined;
 
   const currentTime = Date.now() / 1000;
   const bufferData = messageBuffer.getBuffer(sessionId);
-
-
 
   // Process new messages
   for (const segment of segments) {
@@ -798,18 +567,14 @@ app.post("/webhook", async (req, res) => {
       const timestamp = segment.start || currentTime;
       const isUser = segment.is_user || false;
 
-
-
       // Count words after silence
       if (bufferData.silenceDetected) {
         const wordsInSegment = text.split(/\s+/).length;
         bufferData.wordsAfterSilence += wordsInSegment;
 
-        if (
-          bufferData.wordsAfterSilence >= messageBuffer.minWordsAfterSilence
-        ) {
+        if (bufferData.wordsAfterSilence >= messageBuffer.minWordsAfterSilence) {
           bufferData.silenceDetected = false;
-          bufferData.lastAnalysisTime = currentTime; // Reset analysis timer
+          bufferData.lastAnalysisTime = currentTime;
           console.log(
             `Silence period ended for session ${sessionId}, starting fresh conversation`,
           );
@@ -846,414 +611,323 @@ app.post("/webhook", async (req, res) => {
       (a, b) => a.timestamp - b.timestamp,
     );
 
-    let probabilitytorespond = undefined;
+    // Update analytics in database
     try {
-      //get the response percentage from the database and if none found, insert default values and send them back
-      const conn = await pool.getConnection();
-      const result = await conn.query('SELECT responsepercentage FROM frienddb WHERE uid = ?', [uid]);
+      const uid = sessionId;
+      const { data: currentData } = await supabase
+        .from('frienddb')
+        .select('logs, word_counts, time_distribution, total_words')
+        .eq('uid', uid)
+        .single();
 
-      if (result.length == 0) {
-        await conn.query('INSERT INTO frienddb (uid) VALUES (?) ON DUPLICATE KEY UPDATE uid = uid', [uid]);
-        probabilitytorespond = 50;
-      } else probabilitytorespond = result[0]?.responsepercentage || 50;
-      conn.release();
+      if (currentData) {
+        const existingLogs = currentData.logs || [];
+        const newLogEntry = {
+          timestamp: currentTime,
+          messages: sortedMessages,
+        };
+        
+        const updatedLogs = [...existingLogs, newLogEntry];
+        
+        // Calculate analytics
+        const wordCounts = calculateTopWords(updatedLogs);
+        const timeDistribution = calculateTimeDistribution(updatedLogs);
+        const totalWords = calculateTotalWords(updatedLogs);
+        
+        await supabase
+          .from('frienddb')
+          .update({
+            logs: updatedLogs,
+            word_counts: wordCounts,
+            time_distribution: timeDistribution,
+            total_words: totalWords
+          })
+          .eq('uid', uid);
+      }
     } catch (err) {
-      console.error(
-        "Failed to get response percentage from database:",
-        err.message,
-      );
-      return res
-        .status(500)
-        .json({ error: "Failed to get response percentage from database" });
+      console.error("Error updating analytics:", err);
+    }
+
+    // Determine response probability
+    let probabilityToRespond = 50;
+    try {
+      const { data: userData } = await supabase
+        .from('frienddb')
+        .select('responsepercentage')
+        .eq('uid', sessionId)
+        .single();
+      
+      if (userData) {
+        probabilityToRespond = userData.responsepercentage || 10;
+      } else {
+        await supabase
+          .from('frienddb')
+          .upsert([{ uid: sessionId, responsepercentage: 10 }]);
+        probabilityToRespond = 10;
+      }
+    } catch (err) {
+      console.error("Error getting response percentage:", err);
     }
 
     const notification = await createNotificationPrompt(
       sortedMessages,
-      uid,
-      probabilitytorespond,
+      sessionId,
+      probabilityToRespond,
     );
 
     bufferData.lastAnalysisTime = currentTime;
-    bufferData.messages = []; // Clear buffer after analysis
+    bufferData.messages = [];
 
-    if (!notification || notification == {}) {
-      return res.status(202).json({});
-    } else if (notification.error) {
-      return res.status(500).json({ error: notification.error });
-    } else {
-      console.log(`Notification sent out for ${sessionId}`);
-      return res.status(200).json(notification);
-    }
+    console.log(`Notification generated for session ${sessionId}`);
+    console.log(notification);
+
+    return res.status(200).json(notification);
   }
 
   return res.status(202).json({});
 });
 
-app.get("/webhook/setup-status", (req, res) => {
-  return res.status(200).json({ is_setup_completed: true });
-});
-
-const startTime = Date.now() / 1000; // Uptime in seconds
-
-app.get("/status", (req, res) => {
-  return res.status(200).json({
-    active_sessions: Object.keys(messageBuffer.buffers).length,
-    uptime: Date.now() / 1000 - startTime,
-  });
-});
-
-// Add these constants at the top with other configurations
-const SENTIMENT_CACHE = {};
-const SENTIMENT_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-async function analyzeSentiment(logs) {
-  const dailyLogs = logs.reduce((acc, log) => {
-    const date = new Date(log.timestamp * 1000).toISOString().split('T')[0];
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(log);
-    return acc;
-  }, {});
-
-  const sentiments = {};
-  for (const [date, dayLogs] of Object.entries(dailyLogs)) {
-    // Check cache first
-    if (SENTIMENT_CACHE[date]) {
-      sentiments[date] = SENTIMENT_CACHE[date].value;
-      continue;
-    }
-
-    // Check if we should analyze this date based on cooldown
-    const lastAnalysis = SENTIMENT_CACHE[date]?.timestamp || 0;
-    if (Date.now() - lastAnalysis < SENTIMENT_COOLDOWN) {
-      sentiments[date] = SENTIMENT_CACHE[date]?.value || 0;
-      continue;
-    }
-
-    const text = dayLogs.map(log => log.text).join(' ');
-    try {
-      const response = await axios.post(
-        'https://openrouter.ai/api/v1/chat/completions',
-        {
-          model: "openai/gpt-3.5-turbo",
-          messages: [{
-            role: "user",
-            content: `Analyze the sentiment of this text and return only a number between -1 and 1:\n${text}`
-          }]
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      const sentiment = parseFloat(response.data.choices[0].message.content);
-
-      // Cache the result
-      SENTIMENT_CACHE[date] = {
-        value: sentiment,
-        timestamp: Date.now()
-      };
-
-      sentiments[date] = sentiment;
-    } catch (error) {
-      console.error('Error analyzing sentiment:', error);
-      sentiments[date] = SENTIMENT_CACHE[date]?.value || 0;
-    }
-  }
-  return sentiments;
-}
-
-// Modify the analytics endpoint to include caching
 app.get("/analytics", async (req, res) => {
   const uid = req.query.uid;
   try {
-    const conn = await pool.getConnection();
-    const [rows] = await conn.query('SELECT logs, rating, listenedTo, word_counts, time_distribution, total_words FROM frienddb WHERE uid = ?', [uid]);
-    conn.release();
-
-    if (!rows[0]) {
-      return res.json({
-        totalWords: 0,
-        averageMessageLength: 0,
-        timeDistribution: {
-          morning: 0,
-          afternoon: 0,
-          evening: 0,
-          night: 0
-        },
-        topWords: {},
-        sentimentOverTime: {}
-      });
+    const { data: rows } = await supabase
+      .from('frienddb')
+      .select('logs, rating, listenedTo, word_counts, time_distribution, total_words')
+      .eq('uid', uid)
+      .single();
+    
+    if (!rows) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    const logs = JSON.parse(rows[0].logs || "[]");
-    const wordCounts = JSON.parse(rows[0].word_counts || "{}");
-    const timeDistribution = JSON.parse(rows[0].time_distribution || '{"morning":0,"afternoon":0,"evening":0,"night":0}');
-    const totalWords = rows[0].total_words || 0;
+    const logs = rows.logs || [];
+    const rating = rows.rating || 100;
+    const listenedTo = rows.listenedTo || 0;
+    const wordCounts = rows.word_counts || {};
+    const timeDistribution = rows.time_distribution || {};
+    const totalWords = rows.total_words || 0;
 
-    // Get sentiment from cache or analyze
-    let sentimentOverTime;
-    const cacheKey = `sentiment_${uid}`;
-    const cachedSentiment = SENTIMENT_CACHE[cacheKey];
+    const sentiment = await analyzeSentiment(logs);
 
-    if (cachedSentiment && Date.now() - cachedSentiment.timestamp < SENTIMENT_COOLDOWN) {
-      sentimentOverTime = cachedSentiment.data;
-    } else {
-      sentimentOverTime = await analyzeSentiment(logs);
-      SENTIMENT_CACHE[cacheKey] = {
-        data: sentimentOverTime,
-        timestamp: Date.now()
-      };
-    }
-
-    const analytics = {
+    res.json({
+      rating,
+      listenedTo,
+      totalConversations: logs.length,
       totalWords,
-      averageMessageLength: logs.length > 0 ? totalWords / logs.length : 0,
+      wordCounts,
       timeDistribution,
-      topWords: Object.fromEntries(
-        Object.entries(wordCounts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 10)
-      ),
-      sentimentOverTime
-    };
-
-    res.json(analytics);
+      sentiment,
+    });
   } catch (err) {
-    console.error('Analytics error:', err);
-    res.status(500).json({ error: "Failed to generate analytics" });
+    console.error("Error getting analytics:", err);
+    res.status(500).json({ error: "Failed to get analytics" });
   }
 });
-
-function calculateTimeDistribution(logs) {
-  const distribution = {
-    morning: 0,   // 6-12
-    afternoon: 0, // 12-18
-    evening: 0,   // 18-24
-    night: 0      // 0-6
-  };
-
-  logs.forEach(log => {
-    const hour = new Date(log.timestamp * 1000).getHours();
-    if (hour >= 6 && hour < 12) distribution.morning++;
-    else if (hour >= 12 && hour < 18) distribution.afternoon++;
-    else if (hour >= 18 && hour < 24) distribution.evening++;
-    else distribution.night++;
-  });
-
-  return distribution;
-}
-
-function calculateTotalWords(logs) {
-  return logs.reduce((acc, log) => acc + log.text.split(' ').length, 0);
-}
-
-function calculateTopWords(logs) {
-  const words = {};
-
-  logs.forEach(log => {
-    log.text.toLowerCase()
-      .split(/\s+/)
-      .filter(word => word.length > 2 && !stopWords.has(word))
-      .forEach(word => {
-        words[word] = (words[word] || 0) + 1;
-      });
-  });
-
-  return Object.entries(words)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
-    .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
-}
 
 app.get("/goals", async (req, res) => {
   const uid = req.query.uid;
   try {
-    const conn = await pool.getConnection();
-    const result = await conn.query('SELECT goals FROM frienddb WHERE uid = ?', [uid]);
-    const goals = JSON.parse(result[0]?.goals || "[]");
-    conn.release();
-    res.json(goals);
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('goals')
+      .eq('uid', uid)
+      .single();
+    
+    const goals = JSON.parse(result?.goals || "[]");
+    res.json({ goals });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch goals" });
+    console.error("Error getting goals:", err);
+    res.status(500).json({ error: "Failed to get goals" });
   }
 });
 
 app.post("/goals", async (req, res) => {
   const { uid, type, target } = req.body;
   try {
-    const conn = await pool.getConnection();
-    const result = await conn.query('SELECT goals FROM frienddb WHERE uid = ?', [uid]);
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('goals')
+      .eq('uid', uid)
+      .single();
 
-    let goals = JSON.parse(result[0]?.goals || "[]");
-    goals.push({
-      id: Date.now(),
+    const goals = JSON.parse(result?.goals || "[]");
+    const newGoal = {
+      id: Date.now().toString(),
       type,
-      target: parseInt(target),
+      target,
       progress: 0,
-      created_at: new Date().toISOString()
-    });
+      createdAt: new Date().toISOString(),
+    };
 
-    await conn.query('UPDATE frienddb SET goals = ? WHERE uid = ?', [JSON.stringify(goals), uid]);
-    conn.release();
+    goals.push(newGoal);
+    
+    await supabase
+      .from('frienddb')
+      .update({ goals: JSON.stringify(goals) })
+      .eq('uid', uid);
 
-    res.json({ success: true });
+    res.json({ success: true, goal: newGoal });
   } catch (err) {
+    console.error("Error adding goal:", err);
     res.status(500).json({ error: "Failed to add goal" });
   }
 });
 
-app.delete("/goals/:id", async (req, res) => {
-  const { id } = req.params;
+app.delete("/goals/:goalId", async (req, res) => {
   const { uid } = req.query;
   try {
-    const conn = await pool.getConnection();
-    const result = await conn.query('SELECT goals FROM frienddb WHERE uid = ?', [uid]);
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('goals')
+      .eq('uid', uid)
+      .single();
 
-    let goals = JSON.parse(result[0]?.goals || "[]");
-    goals = goals.filter(goal => goal.id !== parseInt(id));
-
-    await conn.query('UPDATE frienddb SET goals = ? WHERE uid = ?', [JSON.stringify(goals), uid]);
-    conn.release();
+    const goals = JSON.parse(result?.goals || "[]");
+    const updatedGoals = goals.filter((goal) => goal.id !== req.params.goalId);
+    
+    await supabase
+      .from('frienddb')
+      .update({ goals: JSON.stringify(updatedGoals) })
+      .eq('uid', uid);
 
     res.json({ success: true });
   } catch (err) {
+    console.error("Error deleting goal:", err);
     res.status(500).json({ error: "Failed to delete goal" });
   }
 });
 
-const IMAGE_COOLDOWNS = {};
+app.get("/webhook/setup-status", (req, res) => {
+  return res.status(200).json({ is_setup_completed: true });
+});
 
-app.get("/generate-image", async (req, res) => {
+app.get("/insights", async (req, res) => {
   const uid = req.query.uid;
-  const now = Date.now();
-
-  // Check cooldown
-  if (IMAGE_COOLDOWNS[uid] && now < IMAGE_COOLDOWNS[uid]) {
-    return res.status(429).json({
-      error: "Cooldown active",
-      nextAvailable: IMAGE_COOLDOWNS[uid]
-    });
-  }
-
   try {
-    // Get last 24 hours of logs
-    const conn = await pool.getConnection();
-    const result = await conn.query('SELECT logs FROM frienddb WHERE uid = ?', [uid]);
-    const logs = JSON.parse(result[0]?.logs || "[]");
-    conn.release();
-    const last24Hours = logs.filter(log =>
-      log.timestamp > (Date.now() / 1000) - 86400
-    );
-
-
-    // Create a prompt from the conversations
-    const conversationSummary = last24Hours
-      .map(log => log.text)
-      .join(" ");
-
-    // Generate a prompt for DALL-E
-    const promptResponse = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        model: "openai/gpt-3.5-turbo",
-        messages: [{
-          role: "user",
-          content: "Create a creative, artistic DALL-E prompt based on these conversations. Make it relevant to the themes and emotions discussed. You can think of a style yourself. Make sure its relevant to the user and the conversation and not just a random image. conversation summary: " + conversationSummary
-        }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        }
-      }
-    );
-
-    const imagePrompt = promptResponse.data.choices[0].message.content;
-
-    // Generate image using DALL-E
-    const imageResponse = await axios.post(
-      "https://api.openai.com/v1/images/generations",
-      {
-        prompt: imagePrompt,
-        n: 1,
-        size: "256x256",
-        quality: "standard",
-        style: "vivid"
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        }
-      }
-    );
-
-    console.log(imageResponse.data.data[0].url);
-    // Set cooldown for 24 hours
-    IMAGE_COOLDOWNS[uid] = now + (24 * 60 * 60 * 1000);
-
-    res.json({
-      imageUrl: imageResponse.data.data[0].url,
-      prompt: imagePrompt
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('logs')
+      .eq('uid', uid)
+      .single();
+    
+    const logs = JSON.parse(result?.logs || "[]");
+    
+    const last24Hours = logs.filter(log => {
+      const logTime = new Date(log.timestamp * 1000);
+      const now = new Date();
+      return (now - logTime) <= 24 * 60 * 60 * 1000;
     });
 
-  } catch (error) {
-    console.error('Image generation error:', error);
-    res.status(500).json({ error: "Failed to generate image" });
+    let insights = [];
+    
+    if (last24Hours.length > 0) {
+      const totalMessages = last24Hours.reduce((sum, log) => sum + log.messages.length, 0);
+      const userMessages = last24Hours.reduce((sum, log) => 
+        sum + log.messages.filter(msg => msg.is_user).length, 0
+      );
+      
+      insights.push(`You had ${totalMessages} messages in the last 24 hours`);
+      insights.push(`${userMessages} were from you`);
+    }
+
+    res.json({ insights });
+  } catch (err) {
+    console.error("Error getting insights:", err);
+    res.status(500).json({ error: "Failed to get insights" });
   }
 });
 
-app.post("/chat-test", async (req, res) => {
-  const { message, personality, prompt, context } = req.body;
-  console.log(personality, prompt);
-
+async function analyzeSentiment(logs) {
   try {
+    const recentMessages = logs
+      .slice(-20)
+      .flatMap(log => log.messages)
+      .filter(msg => msg.is_user)
+      .map(msg => msg.text)
+      .join(' ');
+
+    if (!recentMessages) {
+      return { overall: 'neutral', confidence: 0.5 };
+    }
+
+    const prompt = `Analyze the sentiment of this text and respond with just one word: positive, negative, or neutral.\n\nText: ${recentMessages}`;
+
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "openai/gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `
-            try to act as a human in natural language (so not perfect writing, lower case, etc). really convince the user that you are a the character you are supposed to be.
-            you are not supposed to assist the user, but rather just chat with him and act as the character you are supposed to be you are a friend, which does not mean you have to act like one.
-            just act like a normal human and dont try to act like an AI and ask stupid questions. you dont need to always try to get the conversation continueing, dont ask questions every time
-            When the user asks "starter" you should use a starter sentance to get the conversation started.
-            No matter what never mention that you are an AI and act like the following:
-            
-            TOP directive: ${prompt}
-            
-            TOP personality traits: ${personality}`
-          },
-          ...context, // Include previous messages
-          {
-            role: "user",
-            content: message
-          }
-        ]
+        model: "openai/gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-        }
-      }
+        },
+      },
     );
 
-    res.json({ response: response.data.choices[0].message.content });
-  } catch (error) {
-    console.error("Chat test error:", error);
-    res.status(500).json({ error: "Failed to get response" });
+    const sentiment = response.data.choices[0].message.content.trim().toLowerCase();
+    
+    return {
+      overall: ['positive', 'negative', 'neutral'].includes(sentiment) ? sentiment : 'neutral',
+      confidence: 0.8
+    };
+  } catch (err) {
+    console.error("Error analyzing sentiment:", err);
+    return { overall: 'neutral', confidence: 0.5 };
   }
-});
+}
+
+function calculateTimeDistribution(logs) {
+  const distribution = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  
+  logs.forEach(log => {
+    const hour = new Date(log.timestamp * 1000).getHours();
+    if (hour >= 6 && hour < 12) distribution.morning++;
+    else if (hour >= 12 && hour < 18) distribution.afternoon++;
+    else if (hour >= 18 && hour < 22) distribution.evening++;
+    else distribution.night++;
+  });
+  
+  return distribution;
+}
+
+function calculateTotalWords(logs) {
+  return logs.reduce((total, log) => 
+    total + log.messages.reduce((sum, msg) => sum + msg.text.split(/\s+/).length, 0), 0
+  );
+}
+
+function calculateTopWords(logs) {
+  const wordCount = {};
+  
+  logs.forEach(log => {
+    log.messages.forEach(msg => {
+      if (msg.is_user) {
+        const words = msg.text.toLowerCase().split(/\s+/);
+        words.forEach(word => {
+          const cleanWord = word.replace(/[^\w]/g, '');
+          if (cleanWord.length > 2 && !stopWords.has(cleanWord)) {
+            wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
+          }
+        });
+      }
+    });
+  });
+  
+  return Object.entries(wordCount)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 20)
+    .reduce((obj, [word, count]) => {
+      obj[word] = count;
+      return obj;
+    }, {});
+}
 
 // Start the server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Friend app listening at http://localhost:${PORT}`);
 });
+
+module.exports = app;

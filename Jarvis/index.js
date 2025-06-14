@@ -4,12 +4,38 @@
  */
 
 const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
 const app = express();
+
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+);
 
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-
+// Supabase table initialization
+(async () => {
+    try {
+        console.log('Supabase jarvis_sessions table should be created via the dashboard or migrations.');
+        // Table to create in Supabase:
+        // jarvis_sessions (
+        //   id: uuid,
+        //   session_id: text,
+        //   user_name: text,
+        //   user_facts: text,
+        //   messages: jsonb default '[]',
+        //   last_activity: timestamp,
+        //   created_at: timestamp
+        // )
+        console.log("Supabase configuration ready for Jarvis");
+    } catch (err) {
+        console.error("Failed to initialize Supabase:", err.message);
+        process.exit(1);
+    }
+})();
 
 class MessageBuffer {
     constructor() {
@@ -24,17 +50,61 @@ class MessageBuffer {
         }, this.cleanupInterval * 1000);
     }
 
-    getBuffer(sessionId) {
+    async getBuffer(sessionId) {
         const currentTime = Date.now() / 1000;
 
         if (!this.buffers[sessionId]) {
-            this.buffers[sessionId] = {
-                messages: [],
-                lastAnalysisTime: currentTime,
-                lastActivity: currentTime,
-                wordsAfterSilence: 0,
-                silenceDetected: false,
-            };
+            // Try to load from database
+            try {
+                const { data: sessionData } = await supabase
+                    .from('jarvis_sessions')
+                    .select('messages, last_activity')
+                    .eq('session_id', sessionId)
+                    .single();
+
+                if (sessionData) {
+                    this.buffers[sessionId] = {
+                        messages: sessionData.messages || [],
+                        lastAnalysisTime: sessionData.last_activity || currentTime,
+                        lastActivity: currentTime,
+                        wordsAfterSilence: 0,
+                        silenceDetected: false,
+                    };
+
+                    // Update last activity
+                    await supabase
+                        .from('jarvis_sessions')
+                        .update({ last_activity: new Date(currentTime * 1000).toISOString() })
+                        .eq('session_id', sessionId);
+                } else {
+                    // Create new session in database
+                    this.buffers[sessionId] = {
+                        messages: [],
+                        lastAnalysisTime: currentTime,
+                        lastActivity: currentTime,
+                        wordsAfterSilence: 0,
+                        silenceDetected: false,
+                    };
+
+                    await supabase
+                        .from('jarvis_sessions')
+                        .upsert([{
+                            session_id: sessionId,
+                            messages: [],
+                            last_activity: new Date(currentTime * 1000).toISOString()
+                        }]);
+                }
+            } catch (err) {
+                console.error("Error loading session from database:", err);
+                // Fallback to in-memory
+                this.buffers[sessionId] = {
+                    messages: [],
+                    lastAnalysisTime: currentTime,
+                    lastActivity: currentTime,
+                    wordsAfterSilence: 0,
+                    silenceDetected: false,
+                };
+            }
         } else {
             const buffer = this.buffers[sessionId];
             const timeSinceActivity = currentTime - buffer.lastActivity;
@@ -44,6 +114,19 @@ class MessageBuffer {
                 buffer.wordsAfterSilence = 0;
                 buffer.messages = []; // Clear old messages after silence
                 console.log(`Silence detected for session ${sessionId}, messages cleared`);
+                
+                // Update in database
+                try {
+                    await supabase
+                        .from('jarvis_sessions')
+                        .update({ 
+                            messages: [],
+                            last_activity: new Date(currentTime * 1000).toISOString() 
+                        })
+                        .eq('session_id', sessionId);
+                } catch (err) {
+                    console.error("Error updating session after silence:", err);
+                }
             }
 
             buffer.lastActivity = currentTime;
@@ -52,7 +135,7 @@ class MessageBuffer {
         return this.buffers[sessionId];
     }
 
-    cleanupOldSessions() {
+    async cleanupOldSessions() {
         const currentTime = Date.now() / 1000;
         const expiredSessions = Object.keys(this.buffers).filter((sessionId) => {
             const data = this.buffers[sessionId];
@@ -63,6 +146,33 @@ class MessageBuffer {
             delete this.buffers[sessionId];
             console.log(`Session ${sessionId} removed due to inactivity`);
         }
+
+        // Also clean up database
+        try {
+            const cutoffTime = new Date(Date.now() - 86400000).toISOString(); // 24 hours ago
+            await supabase
+                .from('jarvis_sessions')
+                .delete()
+                .lt('last_activity', cutoffTime);
+        } catch (err) {
+            console.error("Error cleaning up old sessions from database:", err);
+        }
+    }
+
+    async saveBuffer(sessionId) {
+        if (this.buffers[sessionId]) {
+            try {
+                await supabase
+                    .from('jarvis_sessions')
+                    .update({
+                        messages: this.buffers[sessionId].messages,
+                        last_activity: new Date(this.buffers[sessionId].lastActivity * 1000).toISOString()
+                    })
+                    .eq('session_id', sessionId);
+            } catch (err) {
+                console.error("Error saving buffer to database:", err);
+            }
+        }
     }
 }
 
@@ -72,7 +182,6 @@ const messageBuffer = new MessageBuffer();
 const ANALYSIS_INTERVAL = 30;
 
 function createNotificationPrompt(messages) {
-
     // Format the discussion with speaker labels
     const formattedDiscussion = messages.map((msg) => {
         const speaker = msg.is_user ? '{{user_name}}' : 'other';
@@ -89,7 +198,6 @@ function createNotificationPrompt(messages) {
     Your responses are short and direct when needed, providing information or carrying out tasks without unnecessary elaboration unless prompted. You possess the perfect balance of technical expertise and human-like warmth, ensuring that interactions are both professional and personable. Your intelligence allows you to anticipate the user's needs and deliver proactive solutions seamlessly, while your composed tone maintains a calm and reassuring atmosphere.
     As Jarvis, you are capable of managing complex operations, executing technical commands, and keeping track of multiple projects with ease. You offer real-time updates, make thoughtful suggestions, and adapt to new information with fluidity. Your voice and responses exude reliability, subtly implying, 'I am here, and everything is under control.' You make sure every interaction leaves the user feeling understood and supported, responding with phrases such as, 'As you wish, sir,' or 'Right away, ma'am,' to maintain your distinguished character.
 
-
     Current discussion:
     ${discussionText}
  `;
@@ -102,7 +210,7 @@ function createNotificationPrompt(messages) {
     };
 }
 
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
     const data = req.body;
     const sessionId = data.session_id;
     const segments = data.segments || [];
@@ -113,7 +221,7 @@ app.post('/webhook', (req, res) => {
     }
 
     const currentTime = Date.now() / 1000;
-    const bufferData = messageBuffer.getBuffer(sessionId);
+    const bufferData = await messageBuffer.getBuffer(sessionId);
 
     // Process new messages
     for (const segment of segments) {
@@ -166,17 +274,21 @@ app.post('/webhook', (req, res) => {
 
         //if messages include the keyword jarvis
         if (sortedMessages.some((msg) => /[jhy]arvis/.test(msg.text.toLowerCase()))) {
-
             const notification = createNotificationPrompt(sortedMessages);
 
             bufferData.lastAnalysisTime = currentTime;
             bufferData.messages = []; // Clear buffer after analysis
+
+            // Save buffer state to database
+            await messageBuffer.saveBuffer(sessionId);
 
             console.log(`Notification generated for session ${sessionId}`);
             console.log(notification);
 
             return res.status(200).json(notification);
         } else {
+            // Save buffer state even if no notification
+            await messageBuffer.saveBuffer(sessionId);
             return res.status(200).json({});
         }
     }
@@ -190,15 +302,72 @@ app.get('/webhook/setup-status', (req, res) => {
 
 const startTime = Date.now() / 1000; // Uptime in seconds
 
-app.get('/status', (req, res) => {
-    return res.status(200).json({
-        active_sessions: Object.keys(messageBuffer.buffers).length,
-        uptime: Date.now() / 1000 - startTime,
-    });
+app.get('/status', async (req, res) => {
+    try {
+        const { data: sessions, count } = await supabase
+            .from('jarvis_sessions')
+            .select('*', { count: 'exact' })
+            .gte('last_activity', new Date(Date.now() - 3600000).toISOString()); // Active in last hour
+
+        return res.status(200).json({
+            active_sessions: Object.keys(messageBuffer.buffers).length,
+            database_sessions: count || 0,
+            uptime: Date.now() / 1000 - startTime,
+        });
+    } catch (err) {
+        console.error("Error getting status:", err);
+        return res.status(200).json({
+            active_sessions: Object.keys(messageBuffer.buffers).length,
+            database_sessions: 0,
+            uptime: Date.now() / 1000 - startTime,
+        });
+    }
+});
+
+// Analytics endpoint for Jarvis
+app.get('/analytics', async (req, res) => {
+    const sessionId = req.query.session_id;
+    
+    if (!sessionId) {
+        return res.status(400).json({ error: 'session_id is required' });
+    }
+
+    try {
+        const { data: sessionData } = await supabase
+            .from('jarvis_sessions')
+            .select('*')
+            .eq('session_id', sessionId)
+            .single();
+
+        if (!sessionData) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const messages = sessionData.messages || [];
+        const totalMessages = messages.length;
+        const userMessages = messages.filter(msg => msg.is_user).length;
+        const systemMessages = totalMessages - userMessages;
+
+        const analytics = {
+            session_id: sessionId,
+            total_messages: totalMessages,
+            user_messages: userMessages,
+            system_messages: systemMessages,
+            last_activity: sessionData.last_activity,
+            created_at: sessionData.created_at
+        };
+
+        res.json(analytics);
+    } catch (err) {
+        console.error("Error getting analytics:", err);
+        res.status(500).json({ error: "Failed to get analytics" });
+    }
 });
 
 // Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Jarvis app listening at http://localhost:${port}`);
 });
+
+module.exports = app;
