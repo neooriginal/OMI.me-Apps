@@ -98,6 +98,25 @@ cd Jarvis
 npm start
 ```
 
+4. Add to OMI App
+
+#### Brain App
+- Memory Creation Trigger:
+/api/process-text
+
+#### Friend App
+- Transcription Processed:
+/webhook
+
+- Enable Notifications
+
+#### Jarvis App
+- Transcription Processed:
+/webhook
+
+- Enable Notifications
+
+
 ## Environment Variables
 
 ### Brain App
