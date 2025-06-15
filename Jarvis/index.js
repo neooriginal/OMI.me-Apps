@@ -19,21 +19,31 @@ app.use(express.json());
 // Supabase table initialization
 (async () => {
     try {
-        console.log('Supabase jarvis_sessions table should be created via the dashboard or migrations.');
-        // Table to create in Supabase:
-        // jarvis_sessions (
-        //   id: uuid,
-        //   session_id: text,
-        //   user_name: text,
-        //   user_facts: text,
-        //   messages: jsonb default '[]',
-        //   last_activity: timestamp,
-        //   created_at: timestamp
-        // )
-        console.log("Supabase configuration ready for Jarvis");
+        console.log('Setting up Jarvis app table...');
+        
+        const { error } = await supabase.rpc('exec_sql', {
+            sql_query: `
+                CREATE TABLE IF NOT EXISTS jarvis_sessions (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    session_id TEXT UNIQUE NOT NULL,
+                    user_name TEXT,
+                    user_facts TEXT,
+                    messages JSONB DEFAULT '[]',
+                    last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            `
+        });
+
+        if (error) {
+            console.log("Table may already exist or exec_sql function not found.");
+            console.log("Please run the setup-supabase.sql script in your Supabase SQL editor.");
+        } else {
+            console.log("Jarvis app table created successfully!");
+        }
     } catch (err) {
-        console.error("Failed to initialize Supabase:", err.message);
-        process.exit(1);
+        console.log("Auto-table creation failed. Please run setup-supabase.sql manually.");
+        console.log("Error:", err.message);
     }
 })();
 

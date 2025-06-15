@@ -30,13 +30,62 @@ function handleDatabaseError(error, operation) {
     };
 }
 
-// Initialize database tables - Supabase tables should be created in the dashboard
+// Initialize database tables
 async function createTables() {
-    console.log('Supabase tables should be created via the dashboard or migrations.');
-    // Tables to create in Supabase:
-    // 1. brain_users (id: uuid, uid: text, created_at: timestamp)
-    // 2. memory_nodes (id: uuid, uid: text, node_id: text, type: text, name: text, connections: int, created_at: timestamp)
-    // 3. memory_relationships (id: uuid, uid: text, source: text, target: text, action: text, created_at: timestamp)
+    try {
+        console.log('Setting up Brain app tables...');
+        
+        // Create brain_users table
+        const { error: error1 } = await supabase.rpc('exec_sql', {
+            sql_query: `
+                CREATE TABLE IF NOT EXISTS brain_users (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    uid TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            `
+        });
+
+        // Create memory_nodes table
+        const { error: error2 } = await supabase.rpc('exec_sql', {
+            sql_query: `
+                CREATE TABLE IF NOT EXISTS memory_nodes (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    uid TEXT NOT NULL,
+                    node_id TEXT NOT NULL,
+                    type TEXT,
+                    name TEXT,
+                    connections INTEGER DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    UNIQUE(uid, node_id)
+                );
+            `
+        });
+
+        // Create memory_relationships table
+        const { error: error3 } = await supabase.rpc('exec_sql', {
+            sql_query: `
+                CREATE TABLE IF NOT EXISTS memory_relationships (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    uid TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    action TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            `
+        });
+
+        if (error1 || error2 || error3) {
+            console.log('Tables may already exist or exec_sql function not found.');
+            console.log('Please run the setup-supabase.sql script in your Supabase SQL editor.');
+        } else {
+            console.log('Brain app tables created successfully!');
+        }
+    } catch (err) {
+        console.log('Auto-table creation failed. Please run setup-supabase.sql manually.');
+        console.log('Error:', err.message);
+    }
 }
 
 createTables().catch(console.error);

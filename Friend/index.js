@@ -52,29 +52,39 @@ let cooldownTimeCache = [];
 // Supabase table initialization
 (async () => {
   try {
-    console.log('Supabase frienddb table should be created via the dashboard or migrations.');
-    // Table to create in Supabase:
-    // frienddb (
-    //   id: uuid, 
-    //   uid: text, 
-    //   cooldown: int default 0,
-    //   responsepercentage: int default 10,
-    //   customInstruction: text default '',
-    //   personality: text default '100% chill; 35% friendly; 55% teasing...',
-    //   logs: jsonb default '[]',
-    //   listenedTo: int default 0,
-    //   rating: int default 100,
-    //   goals: jsonb default '[]',
-    //   analytics: jsonb default '{}',
-    //   word_counts: jsonb default '{}',
-    //   time_distribution: jsonb default '{"morning":0,"afternoon":0,"evening":0,"night":0}',
-    //   total_words: int default 0,
-    //   created_at: timestamp
-    // )
-    console.log("Supabase configuration ready");
+    console.log('Setting up Friend app table...');
+    
+    const { error } = await supabase.rpc('exec_sql', {
+      sql_query: `
+        CREATE TABLE IF NOT EXISTS frienddb (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          uid TEXT UNIQUE NOT NULL,
+          cooldown INTEGER DEFAULT 0,
+          responsepercentage INTEGER DEFAULT 10,
+          customInstruction TEXT DEFAULT '',
+          personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik',
+          logs JSONB DEFAULT '[]',
+          listenedTo INTEGER DEFAULT 0,
+          rating INTEGER DEFAULT 100,
+          goals JSONB DEFAULT '[]',
+          analytics JSONB DEFAULT '{}',
+          word_counts JSONB DEFAULT '{}',
+          time_distribution JSONB DEFAULT '{"morning":0,"afternoon":0,"evening":0,"night":0}',
+          total_words INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `
+    });
+
+    if (error) {
+      console.log("Table may already exist or exec_sql function not found.");
+      console.log("Please run the setup-supabase.sql script in your Supabase SQL editor.");
+    } else {
+      console.log("Friend app table created successfully!");
+    }
   } catch (err) {
-    console.error("Failed to initialize Supabase:", err.message);
-    process.exit(1);
+    console.log("Auto-table creation failed. Please run setup-supabase.sql manually.");
+    console.log("Error:", err.message);
   }
 })();
 
