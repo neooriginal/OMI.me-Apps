@@ -101,21 +101,15 @@ npm start
 ## Environment Variables
 
 ### Brain App
-- `DB_HOST`: MySQL host
-- `DB_PORT`: MySQL port
-- `DB_USER`: Database username
-- `DB_PASSWORD`: Database password
-- `DB_NAME`: Database name
+- `SUPABASE_URL`: Supabase URL
+- `SUPABASE_ANON_KEY`: Supabase ANON Api Key
 - `OPENROUTER_API_KEY`: OpenRouter API key
 - `PORT`: Server port (default: 3000)
 - `NODE_ENV`: Environment (development/production)
 
 ### Friend App
-- `DB_HOST`: MySQL host
-- `DB_PORT`: MySQL port
-- `DB_USER`: Database username
-- `DB_PASSWORD`: Database password
-- `DB_NAME`: Database name
+- `SUPABASE_URL`: Supabase URL
+- `SUPABASE_ANON_KEY`: Supabase ANON Api Key
 - `OPENROUTER_API_KEY`: OpenRouter API key
 - `PORT`: Server port (default: 5000)
 
