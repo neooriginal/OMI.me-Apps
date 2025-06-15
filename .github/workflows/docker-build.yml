@@ -77,38 +77,39 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
       - name: Create Release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
-          body: |
-            ## OMI Apps Release v${{ github.run_number }}
-            
-            🐳 **Docker Images Available:**
-            - `ghcr.io/neooriginal/omi.me-apps/brain:latest`
-            - `ghcr.io/neooriginal/omi.me-apps/friend:latest`
-            - `ghcr.io/neooriginal/omi.me-apps/jarvis:latest`
-            
-            ## 🚀 Quick Start
-            ```bash
-            git clone https://github.com/neooriginal/OMI.me-Apps.git
-            cd OMI.me-Apps
-            cp docker.env.example .env
-            # Edit .env with your configuration
-            docker-compose up -d
-            ```
-            
-            ## 📱 Access Your Apps
-            - **Brain:** http://localhost:3000
-            - **Friend:** http://localhost:5000
-            - **Jarvis:** http://localhost:8000
-          draft: false
-          prerelease: false 
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="v${{ github.run_number }}"
+          RELEASE_NAME="Release v${{ github.run_number }}"
+          
+          gh release create "$TAG_NAME" \
+            --title "$RELEASE_NAME" \
+            --notes "## OMI Apps Release v${{ github.run_number }}
+
+          🐳 **Docker Images Available:**
+          - \`ghcr.io/neooriginal/omi.me-apps/brain:latest\`
+          - \`ghcr.io/neooriginal/omi.me-apps/friend:latest\`
+          - \`ghcr.io/neooriginal/omi.me-apps/jarvis:latest\`
+
+          ## 🚀 Quick Start
+          \`\`\`bash
+          git clone https://github.com/neooriginal/OMI.me-Apps.git
+          cd OMI.me-Apps
+          cp docker.env.example .env
+          # Edit .env with your configuration
+          docker-compose up -d
+          \`\`\`
+
+          ## 📱 Access Your Apps
+          - **Brain:** http://localhost:3000
+          - **Friend:** http://localhost:5000
+          - **Jarvis:** http://localhost:8000" 
