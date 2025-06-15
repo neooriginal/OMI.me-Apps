@@ -107,13 +107,13 @@ class MessageBuffer {
             } catch (err) {
                 console.error("Error loading session from database:", err);
                 // Fallback to in-memory
-                this.buffers[sessionId] = {
-                    messages: [],
-                    lastAnalysisTime: currentTime,
-                    lastActivity: currentTime,
-                    wordsAfterSilence: 0,
-                    silenceDetected: false,
-                };
+            this.buffers[sessionId] = {
+                messages: [],
+                lastAnalysisTime: currentTime,
+                lastActivity: currentTime,
+                wordsAfterSilence: 0,
+                silenceDetected: false,
+            };
             }
         } else {
             const buffer = this.buffers[sessionId];
@@ -326,11 +326,11 @@ app.get('/status', async (req, res) => {
         });
     } catch (err) {
         console.error("Error getting status:", err);
-        return res.status(200).json({
-            active_sessions: Object.keys(messageBuffer.buffers).length,
+    return res.status(200).json({
+        active_sessions: Object.keys(messageBuffer.buffers).length,
             database_sessions: 0,
-            uptime: Date.now() / 1000 - startTime,
-        });
+        uptime: Date.now() / 1000 - startTime,
+    });
     }
 });
 
