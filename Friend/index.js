@@ -8,9 +8,40 @@ const app = express();
 const { createClient } = require('@supabase/supabase-js');
 const bodyParser = require("body-parser");
 const axios = require("axios");
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const { body, validationResult, query } = require('express-validator');
 
 const dotenv = require("dotenv");
 dotenv.config();
+
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP to avoid breaking existing functionality
+}));
+
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // limit webhook to 30 requests per minute
+  message: { error: 'Webhook rate limit exceeded.' },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit API calls to 50 per 15 minutes
+  message: { error: 'API rate limit exceeded.' },
+});
+
+app.use(generalLimiter);
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -41,9 +72,9 @@ const stopWords = new Set([
   "rather", "every", "both", "follow", "along", "going", "much", "something", "nothing", "everything", "nowhere", "somewhere", "anywhere", "everywhere", "whatever", "whichever", "whoever", "whomsoever", "whosoever", "whoso", "been", "what", "being", "way", "had", "which"
 ]);
 
-// Middleware to parse JSON bodies
-app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Middleware to parse JSON bodies with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
 let cooldown = [];
@@ -155,7 +186,7 @@ app.get("/", (req, res) => {
     return res.redirect(`${returnTo}?uid=${req.query.uid}`);
   }
 
-  res.sendFile(__dirname + "/public/index.html");
+  res.sendFile(__dirname + "/public/dashboard.html");
 });
 
 app.get("/deleteData", async (req, res) => {
@@ -199,7 +230,21 @@ const validateUID = (req, res, next) => {
   if (!uid) {
     return res.status(400).json({ error: "Missing UID" });
   }
+  
+  // Basic UID validation
+  if (typeof uid !== 'string' || uid.length > 50 || uid.trim() !== uid) {
+    return res.status(400).json({ error: "Invalid UID format" });
+  }
+  
   next();
+};
+
+// Input sanitization helper
+const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return input;
+  return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+              .replace(/<[^>]*>?/gm, '')
+              .trim();
 };
 
 // Error handling middleware
@@ -271,12 +316,21 @@ app.post("/deleteuser", validateUID, async (req, res, next) => {
   }
 });
 
-app.post("/save", validateUID, validateSaveInput, async (req, res, next) => {
+app.post("/save", apiLimiter, validateUID, validateSaveInput, [
+  body('customInstruction').optional().isString().isLength({ max: 2000 }),
+  body('personality').optional().isString().isLength({ max: 500 }),
+], async (req, res, next) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Invalid input data" });
+  }
+
   try {
-    const uid = req.body.uid;
+    const uid = sanitizeInput(req.body.uid);
     const responsepercentage = parseInt(req.body.responsepercentage) || 10;
-    const customInstruction = req.body.customInstruction || "";
-    const personality = req.body.personality;
+    const customInstruction = sanitizeInput(req.body.customInstruction || "");
+    const personality = sanitizeInput(req.body.personality);
     const cooldown = parseInt(req.body.cooldown) || 5;
 
     let updateData = {
@@ -555,9 +609,20 @@ async function rateConversations(uid) {
   }
 }
 
-app.post("/webhook", async (req, res) => {
+app.post("/webhook", webhookLimiter, [
+  body('session_id').isString().isLength({ min: 1, max: 50 }).trim(),
+  body('segments').optional().isArray({ max: 100 }),
+  body('segments.*.text').optional().isString().isLength({ max: 1000 }),
+  body('segments.*.is_user').optional().isBoolean(),
+], async (req, res) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Invalid input data" });
+  }
+
   const data = req.body;
-  const sessionId = data.session_id;
+  const sessionId = sanitizeInput(data.session_id);
   const segments = data.segments || [];
 
   if (!sessionId) {
@@ -572,10 +637,10 @@ app.post("/webhook", async (req, res) => {
   for (const segment of segments) {
     if (!segment.text) continue;
 
-    const text = segment.text.trim();
-    if (text) {
-      const timestamp = segment.start || currentTime;
-      const isUser = segment.is_user || false;
+          const text = sanitizeInput(segment.text.trim());
+      if (text && text.length <= 1000) {  // Limit text length
+        const timestamp = segment.start || currentTime;
+        const isUser = segment.is_user || false;
 
       // Count words after silence
       if (bufferData.silenceDetected) {
@@ -697,8 +762,16 @@ app.post("/webhook", async (req, res) => {
   return res.status(202).json({});
 });
 
-app.get("/analytics", async (req, res) => {
-  const uid = req.query.uid;
+app.get("/analytics", apiLimiter, [
+  query('uid').isString().isLength({ min: 1, max: 50 }).trim(),
+], async (req, res) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Invalid UID" });
+  }
+
+  const uid = sanitizeInput(req.query.uid);
   try {
     const { data: rows } = await supabase
       .from('frienddb')
@@ -707,14 +780,28 @@ app.get("/analytics", async (req, res) => {
       .single();
     
     if (!rows) {
-      return res.status(404).json({ error: "User not found" });
+      // Create user with default data if doesn't exist
+      await supabase
+        .from('frienddb')
+        .upsert([{ uid }]);
+      
+      // Return default analytics data
+      return res.json({
+        rating: 100,
+        listenedTo: 0,
+        totalConversations: 0,
+        totalWords: 0,
+        wordCounts: {},
+        timeDistribution: { morning: 0, afternoon: 0, evening: 0, night: 0 },
+        sentiment: { overall: 'neutral', confidence: 0.5 },
+      });
     }
 
     const logs = rows.logs || [];
     const rating = rows.rating || 100;
     const listenedTo = rows.listenedTo || 0;
     const wordCounts = rows.word_counts || {};
-    const timeDistribution = rows.time_distribution || {};
+    const timeDistribution = rows.time_distribution || { morning: 0, afternoon: 0, evening: 0, night: 0 };
     const totalWords = rows.total_words || 0;
 
     const sentiment = await analyzeSentiment(logs);
@@ -734,47 +821,89 @@ app.get("/analytics", async (req, res) => {
   }
 });
 
-app.get("/goals", async (req, res) => {
-  const uid = req.query.uid;
+app.get("/goals", apiLimiter, [
+  query('uid').isString().isLength({ min: 1, max: 50 }).trim(),
+], async (req, res) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Invalid UID" });
+  }
+
+  const uid = sanitizeInput(req.query.uid);
   try {
-    const { data: result } = await supabase
+    const { data: result, error } = await supabase
       .from('frienddb')
       .select('goals')
       .eq('uid', uid)
       .single();
     
-    const goals = JSON.parse(result?.goals || "[]");
+    if (error || !result) {
+      // Create user if doesn't exist
+      await supabase
+        .from('frienddb')
+        .upsert([{ uid, goals: '[]' }]);
+      return res.json({ goals: [] });
+    }
+    
+    const goalsString = result?.goals;
+    let goals = [];
+    
+    if (goalsString && typeof goalsString === 'string' && goalsString.trim() !== '') {
+      try {
+        goals = JSON.parse(goalsString);
+      } catch (parseError) {
+        console.warn('Failed to parse goals JSON, using empty array:', parseError);
+        goals = [];
+      }
+    }
+    
     res.json({ goals });
   } catch (err) {
     console.error("Error getting goals:", err);
-    res.status(500).json({ error: "Failed to get goals" });
+    // Return empty goals instead of error for better UX
+    res.json({ goals: [] });
   }
 });
 
-app.post("/goals", async (req, res) => {
+app.post("/goals", apiLimiter, [
+  body('uid').isString().isLength({ min: 1, max: 50 }).trim(),
+  body('type').isString().isLength({ min: 1, max: 50 }).trim(),
+  body('target').isString().isLength({ min: 1, max: 200 }).trim(),
+], async (req, res) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Invalid input data" });
+  }
+
   const { uid, type, target } = req.body;
+  const sanitizedUid = sanitizeInput(uid);
+  const sanitizedType = sanitizeInput(type);
+  const sanitizedTarget = sanitizeInput(target);
+  
   try {
-    const { data: result } = await supabase
-      .from('frienddb')
-      .select('goals')
-      .eq('uid', uid)
-      .single();
+          const { data: result } = await supabase
+        .from('frienddb')
+        .select('goals')
+        .eq('uid', sanitizedUid)
+        .single();
 
-    const goals = JSON.parse(result?.goals || "[]");
-    const newGoal = {
-      id: Date.now().toString(),
-      type,
-      target,
-      progress: 0,
-      createdAt: new Date().toISOString(),
-    };
+      const goals = JSON.parse(result?.goals || "[]");
+      const newGoal = {
+        id: Date.now().toString(),
+        type: sanitizedType,
+        target: sanitizedTarget,
+        progress: 0,
+        createdAt: new Date().toISOString(),
+      };
 
-    goals.push(newGoal);
-    
-    await supabase
-      .from('frienddb')
-      .update({ goals: JSON.stringify(goals) })
-      .eq('uid', uid);
+      goals.push(newGoal);
+      
+      await supabase
+        .from('frienddb')
+        .update({ goals: JSON.stringify(goals) })
+        .eq('uid', sanitizedUid);
 
     res.json({ success: true, goal: newGoal });
   } catch (err) {
@@ -811,8 +940,16 @@ app.get("/webhook/setup-status", (req, res) => {
   return res.status(200).json({ is_setup_completed: true });
 });
 
-app.get("/insights", async (req, res) => {
-  const uid = req.query.uid;
+app.get("/insights", apiLimiter, [
+  query('uid').isString().isLength({ min: 1, max: 50 }).trim(),
+], async (req, res) => {
+  // Check validation results
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: "Invalid UID" });
+  }
+
+  const uid = sanitizeInput(req.query.uid);
   try {
     const { data: result } = await supabase
       .from('frienddb')

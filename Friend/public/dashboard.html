@@ -227,24 +227,32 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Global function to handle missing images - must be defined first
+        window.handleMissingImage = function(img) {
+            img.onerror = null; // Prevent infinite loop
+            img.src = `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(img.alt || 'default')}`; // Use DiceBear API for placeholder
+        };
+
         function initializeUID() {
             try {
                 const uid = new URLSearchParams(window.location.search).get('uid');
-                const uidElement = document.getElementById('uid-display');
-                const actualUid = document.getElementById('actual-uid');
-
-                if (!uidElement || !actualUid || !uid) {
-                    console.error('Required elements not found or UID missing');
+                if (!uid) {
+                    console.warn('No UID provided in URL');
                     return;
                 }
 
-                actualUid.textContent = uid;
                 setCookie('uid', uid);
-
-
-                uidElement.addEventListener('click', () => {
-                    uidElement.classList.toggle('revealed');
-                });
+                
+                // Only try to set UID elements if they exist
+                const uidElement = document.getElementById('uid-display');
+                const actualUid = document.getElementById('actual-uid');
+                
+                if (uidElement && actualUid) {
+                    actualUid.textContent = uid;
+                    uidElement.addEventListener('click', () => {
+                        uidElement.classList.toggle('revealed');
+                    });
+                }
             } catch (error) {
                 console.error('Error initializing UID display:', error);
             }
@@ -336,8 +344,8 @@
 
                 // Initialize charts
                 initializeTimeChart(data.timeDistribution);
-                initializeWordCloud(data.topWords);
-                initializeSentimentChart(data.sentimentOverTime);
+                initializeWordCloud(data.wordCounts);
+                initializeSentimentChart(data.sentiment);
 
                 // Remove loading blur from analytics cards
                 document.querySelectorAll('.getStatisticLoading').forEach(card => {
@@ -414,10 +422,21 @@
             const container = document.getElementById('wordCloud');
             container.innerHTML = '';
 
+            // Handle null/undefined data
+            if (!wordData || typeof wordData !== 'object' || Object.keys(wordData).length === 0) {
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center;">No word data available yet</p>';
+                return;
+            }
+
             // Convert data to array and sort by count
             const words = Object.entries(wordData)
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, 10); // Reduced from 50 to 10 words
+
+            if (words.length === 0) {
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center;">No words to display</p>';
+                return;
+            }
 
             // Find max count for scaling
             const maxCount = Math.max(...words.map(([, count]) => count));
@@ -469,14 +488,31 @@
                 window.sentimentChart.destroy();
             }
 
+            // Handle null/undefined data or simple sentiment object
+            let labels, values;
+            if (!sentimentData || typeof sentimentData !== 'object') {
+                labels = ['Current'];
+                values = [0];
+            } else if (sentimentData.overall) {
+                // Single sentiment object like {overall: 'neutral', confidence: 0.5}
+                const sentimentValue = sentimentData.overall === 'positive' ? 1 : 
+                                     sentimentData.overall === 'negative' ? -1 : 0;
+                labels = ['Current Sentiment'];
+                values = [sentimentValue];
+            } else {
+                // Multiple sentiment data points
+                labels = Object.keys(sentimentData);
+                values = Object.values(sentimentData);
+            }
+
             const ctx = canvas.getContext('2d');
             window.sentimentChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: Object.keys(sentimentData),
+                    labels: labels,
                     datasets: [{
                         label: 'Sentiment',
-                        data: Object.values(sentimentData),
+                        data: values,
                         borderColor: 'rgba(255, 255, 255, 0.6)',
                         tension: 0.4
                     }]
@@ -520,7 +556,8 @@
 
             try {
                 const response = await fetch(`/goals?uid=${uid}`);
-                const goals = await response.json();
+                const data = await response.json();
+                const goals = data.goals || [];
 
                 container.innerHTML = goals.map(goal => `
                     <div class="goal-card">
@@ -696,6 +733,11 @@
                 if (!message) return;
 
                 const selectedCard = document.querySelector('.preset-card[data-preset="' + selectedName.textContent + '"]');
+                
+                if (!selectedCard) {
+                    console.error('No selected character card found');
+                    return;
+                }
 
                 addMessage(message, 'user', chatMessages);
                 chatInput.value = '';
@@ -896,19 +938,7 @@
             }
         }
 
-        // Add this function to handle missing images
-        function handleMissingImage(img) {
-            img.onerror = null; // Prevent infinite loop
-            img.src = `https://api.dicebear.com/7.x/personas/svg?seed=${img.alt || 'default'}`; // Use DiceBear API for placeholder
-        }
 
-        // Add this to your initialization code
-        document.addEventListener('DOMContentLoaded', () => {
-            // Add error handlers to all profile images
-            document.querySelectorAll('.preset-card img, #selected-image').forEach(img => {
-                img.onerror = () => handleMissingImage(img);
-            });
-        });
 
         async function saveCharacter() {
             try {
@@ -1010,6 +1040,14 @@
             }
         }
     </script>
+
+    <footer class="credits-footer">
+        <div class="credits-content">
+            <p>originally created by <a href="https://github.com/neooriginal" target="_blank" rel="noopener noreferrer">@neooriginal</a></p>
+            <p class="disclaimer">creator has no ongoing maintenance responsibility or liability</p>
+            <p><a href="https://github.com/neooriginal/OMI.me-Apps" target="_blank" rel="noopener noreferrer">view source repository</a></p>
+        </div>
+    </footer>
 </body>
 
 </html>

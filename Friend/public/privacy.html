@@ -35,6 +35,35 @@
             margin-bottom: 8px;
             line-height: 1.6;
         }
+
+        .credits-section {
+            text-align: center;
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .credits-section p {
+            margin: 8px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .credits-section a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .credits-section a:hover {
+            color: var(--accent);
+        }
+
+        .credits-section .disclaimer {
+            font-size: 12px;
+            opacity: 0.8;
+            font-style: italic;
+        }
     </style>
 </head>
 
@@ -77,6 +106,12 @@
 
         <h2>Contact</h2>
         <p>If you have any questions about our privacy policy or data practices, please contact us.</p>
+
+        <div class="credits-section">
+            <p>originally created by <a href="https://github.com/neooriginal" target="_blank" rel="noopener noreferrer">@neooriginal</a></p>
+            <p class="disclaimer">creator has no ongoing maintenance responsibility or liability</p>
+            <p><a href="https://github.com/neooriginal/OMI.me-Apps" target="_blank" rel="noopener noreferrer">view source repository</a></p>
+        </div>
     </div>
 </body>
 
