@@ -146,3 +146,38 @@ h6 {
     border-radius: 2px;
     transition: width 0.3s ease;
 }
+
+.credits-footer {
+    margin-top: 48px;
+    padding: 24px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    text-align: center;
+}
+
+.credits-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.credits-content p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.credits-content a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.credits-content a:hover {
+    color: var(--accent);
+}
+
+.credits-content .disclaimer {
+    font-size: 12px;
+    opacity: 0.8;
+    font-style: italic;
+}

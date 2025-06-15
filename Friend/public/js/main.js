@@ -48,7 +48,7 @@ const navigate = (page) => {
 const setCookie = (name, value, days = 7) => {
     const date = new Date();
     date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-    document.cookie = `${name}=${value};expires=${date.toUTCString()};path=/`;
+    document.cookie = `${name}=${value};expires=${date.toUTCString()};path=/;SameSite=Strict;Secure=${location.protocol === 'https:'}`;
 };
 
 const getCookie = (name) => {

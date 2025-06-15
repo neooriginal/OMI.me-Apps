@@ -2,3 +2,6 @@
 /Friend/node_modules
 /Jarvis/node_modules
 Brain/.env
+Friend/package-lock.json
+Friend/.env
+.DS_Store

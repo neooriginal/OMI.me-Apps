@@ -921,3 +921,32 @@ body {
 .chat-input button:active {
     transform: translateY(0);
 }
+
+.credits-section {
+    text-align: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.credits-section p {
+    margin: 4px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.credits-section a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.credits-section a:hover {
+    color: var(--accent);
+}
+
+.credits-section .disclaimer {
+    font-size: 11px;
+    opacity: 0.8;
+    font-style: italic;
+}
