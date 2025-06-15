@@ -599,79 +599,6 @@ html {
     text-align: center;
 }
 
-/* Upload tab styles */
-.upload-tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.upload-tab-btn {
-    flex: 1;
-    padding: 10px;
-    background: rgba(0, 255, 170, 0.1);
-    border: 1px solid rgba(0, 255, 170, 0.2);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: center;
-}
-
-.upload-tab-btn.active {
-    background: rgba(0, 255, 170, 0.2);
-    border-color: rgba(0, 255, 170, 0.4);
-    color: #00ffaa;
-}
-
-.upload-tab-btn:active {
-    transform: translateY(2px);
-}
-
-.upload-tab-content {
-    display: none;
-}
-
-.upload-tab-content.active {
-    display: block;
-}
-
-.file-drop-area {
-    border: 2px dashed rgba(0, 255, 170, 0.3);
-    border-radius: 8px;
-    padding: 30px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-bottom: 20px;
-}
-
-.file-drop-area:hover,
-.file-drop-area.drag-over {
-    border-color: rgba(0, 255, 170, 0.6);
-    background: rgba(0, 255, 170, 0.05);
-}
-
-.file-prompt {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.file-prompt .icon {
-    font-size: 32px;
-    margin-bottom: 10px;
-    display: block;
-}
-
-.file-prompt p {
-    margin: 5px 0;
-}
-
-.file-types {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-#process-file:disabled,
 #process-text:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -731,8 +658,7 @@ html {
     box-shadow: 0 0 0 2px rgba(0, 255, 170, 0.1);
 }
 
-#process-text,
-#process-file {
+#process-text {
     width: 100%;
     padding: 12px;
     font-size: 14px;
@@ -748,19 +674,16 @@ html {
     transition: all 0.2s ease;
 }
 
-#process-text:hover:not(:disabled),
-#process-file:hover:not(:disabled) {
+#process-text:hover:not(:disabled) {
     background: rgba(0, 255, 170, 0.25);
     transform: translateY(-1px);
 }
 
-#process-text:active:not(:disabled),
-#process-file:active:not(:disabled) {
+#process-text:active:not(:disabled) {
     transform: translateY(0);
 }
 
-#process-text .icon,
-#process-file .icon {
+#process-text .icon {
     font-size: 16px;
 }
 
@@ -1191,42 +1114,7 @@ body.modal-open {
     background: rgba(255, 193, 7, 0.15);
 }
 
-/* Discord links */
-.link-discord-btn,
-.discord-link-btn {
-    background: rgba(88, 101, 242, 0.2);
-    border: 1px solid rgba(88, 101, 242, 0.4);
-    color: #5865f2;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
 
-.link-discord-btn {
-    padding: 4px 12px;
-    font-size: 13px;
-    margin-left: 8px;
-}
-
-.link-discord-btn:hover,
-.discord-link-btn:hover {
-    background: rgba(88, 101, 242, 0.3);
-    transform: translateY(-1px);
-}
-
-.link-discord-btn:active,
-.discord-link-btn:active {
-    transform: translateY(0);
-}
-
-.discord-link-btn .icon {
-    font-size: 16px;
-}
 
 /* Security card styles */
 .security-card {
@@ -1250,51 +1138,37 @@ body.modal-open {
     color: #00ffaa !important;
 }
 
-/* ZAP hosting banner */
-.zap-hosting-banner {
+/* Credits */
+.credits {
     position: fixed;
-    top: 20px;
+    bottom: 20px;
     right: 20px;
-    z-index: 999;
-    transition: all 0.3s ease;
-    border-radius: 10px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    background: rgba(15, 15, 25, 0.95);
-    padding: 10px;
-    border: 2px solid #00ffaa;
-    transform: scale(0.95);
-    max-width: 300px;
+    z-index: 1000;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
 }
 
-.zap-hosting-banner .promo-text {
+.credits:hover {
+    opacity: 1;
+}
+
+.credits a {
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.credits a:hover {
     color: #00ffaa;
-    text-align: center;
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
-    word-wrap: break-word;
-    white-space: normal;
-    line-height: 1.4;
-    padding: 0 5px;
-}
-
-.zap-hosting-banner:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 30px rgba(0, 255, 170, 0.4);
-}
-
-.zap-hosting-banner img {
-    max-width: 280px;
-    height: auto;
-    border-radius: 8px;
-    transition: transform 0.3s ease;
-}
-
-.zap-hosting-banner:hover img {
-    transform: scale(1.02);
+    border-color: rgba(0, 255, 170, 0.3);
+    background: rgba(0, 255, 170, 0.1);
 }
 
 /* Mobile Styles */
@@ -1493,35 +1367,17 @@ body.modal-open {
         padding: 12px;
     }
 
-    .link-discord-btn {
-        margin-top: 8px;
-        margin-left: 0;
+
+
+    /* Credits for mobile */
+    .credits {
+        bottom: 10px;
+        right: 10px;
     }
 
-    /* ZAP hosting banner for mobile */
-    .zap-hosting-banner {
-        top: auto;
-        right: auto;
-        left: 50%;
-        bottom: 20px;
-        transform: translateX(-50%) scale(0.9);
-        max-width: 280px;
-    }
-
-    .zap-hosting-banner:hover {
-        transform: translateX(-50%) scale(0.95);
-    }
-
-    .zap-hosting-banner img {
-        max-width: 280px;
-        width: 100%;
-        height: auto;
-    }
-
-    .zap-hosting-banner .promo-text {
-        font-size: 13px;
-        margin-bottom: 6px;
-        padding: 0 4px;
+    .credits a {
+        font-size: 11px;
+        padding: 4px 8px;
     }
 }
 

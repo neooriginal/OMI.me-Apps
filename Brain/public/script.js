@@ -26,16 +26,7 @@ async function apiCall(endpoint, options = {}) {
             },
         };
 
-        // Add uid to query params for GET requests
-        if (!options.method || options.method === 'GET') {
-            endpoint += (endpoint.includes('?') ? '&' : '?') + `uid=${uid}`;
-        }
-        // Add uid to body for POST requests
-        else if (options.body) {
-            const body = JSON.parse(options.body);
-            body.uid = uid;
-            options.body = JSON.stringify(body);
-        }
+        // Session-based authentication - no need to manually add uid
 
         const response = await fetch(endpoint, { ...baseOptions, ...options });
         if (response.status === 401) {
@@ -761,125 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize upload functionality
     const processTextBtn = document.getElementById('process-text');
     const textUpload = document.getElementById('text-upload');
-    const fileUpload = document.getElementById('file-upload');
-    const processFileBtn = document.getElementById('process-file');
     const uploadStatus = document.getElementById('upload-status');
-    const fileDropArea = document.querySelector('.file-drop-area');
-
-    // Upload tab switching
-    document.querySelectorAll('.upload-tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.upload-tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.upload-tab-content').forEach(c => c.classList.remove('active'));
-
-            btn.classList.add('active');
-            const tab = btn.dataset.tab;
-            document.getElementById(`${tab}-tab`).classList.add('active');
-        });
-    });
-
-    // File upload handling
-    if (fileDropArea && fileUpload && processFileBtn) {
-        // File drop handling
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            fileDropArea.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            fileDropArea.addEventListener(eventName, () => {
-                fileDropArea.classList.add('drag-over');
-            });
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            fileDropArea.addEventListener(eventName, () => {
-                fileDropArea.classList.remove('drag-over');
-            });
-        });
-
-        fileDropArea.addEventListener('drop', handleDrop);
-        fileDropArea.addEventListener('click', () => fileUpload.click());
-        fileUpload.addEventListener('change', handleFileSelect);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const file = dt.files[0];
-            handleFile(file);
-        }
-
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            handleFile(file);
-        }
-
-        function handleFile(file) {
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const text = e.target.result;
-                processFileBtn.disabled = false;
-                processFileBtn.onclick = () => processFileContent(text, file.name);
-            };
-            reader.readAsText(file);
-        }
-
-        async function processFileContent(text, filename) {
-            processFileBtn.disabled = true;
-            const originalText = processFileBtn.innerHTML;
-            processFileBtn.innerHTML = '<span class="icon">⏳</span> Processing...';
-
-            uploadStatus.innerHTML = `
-                <div class="loading-text">
-                    Processing ${filename} and updating memory graph<span class="loading-dots"></span>
-                </div>
-            `;
-            uploadStatus.classList.add('active');
-
-            try {
-                const response = await apiCall(`/api/process-text?uid=${uid}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        transcript_segments: [{ speaker: 'File', text }]
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    updateVisualization(data);
-
-                    // Clear input and show success message
-                    fileUpload.value = '';
-                    processFileBtn.disabled = true;
-                    uploadStatus.innerHTML = `
-                        <div class="success">
-                            <span class="icon">✓</span>
-                            File processed successfully
-                        </div>
-                        <div class="stats">
-                            Added ${data.nodes.length} nodes and ${data.relationships.length} connections to your memory graph
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error processing file:', error);
-                uploadStatus.innerHTML = `
-                    <div class="error">
-                        <span class="icon">❌</span>
-                        Failed to process file. Please try again.
-                    </div>
-                `;
-            } finally {
-                processFileBtn.disabled = false;
-                processFileBtn.innerHTML = originalText;
-            }
-        }
-    }
 
     // Initialize text processing
     if (processTextBtn && textUpload) {
@@ -901,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadStatus.classList.add('active');
 
             try {
-                const response = await apiCall(`/api/process-text?uid=${uid}`, {
+                const response = await apiCall(`/api/process-text`, {
                     method: 'POST',
                     body: JSON.stringify({
                         transcript_segments: [{ speaker: 'User', text }]

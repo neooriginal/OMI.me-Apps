@@ -81,28 +81,11 @@
                         <p>Upload text to process into your memory graph</p>
                     </div>
                     <div class="upload-area">
-                        <div class="upload-tabs">
-                            <button class="upload-tab-btn active" data-tab="text">Text Input</button>
-                            <button class="upload-tab-btn" data-tab="file">File Upload</button>
-                        </div>
                         <div class="upload-tab-content active" id="text-tab">
                             <textarea id="text-upload"
                                 placeholder="Paste your text here to add new memories..."></textarea>
                             <button id="process-text" class="action-button primary">
                                 <span class="icon">🔄</span> Process Text
-                            </button>
-                        </div>
-                        <div class="upload-tab-content" id="file-tab">
-                            <div class="file-drop-area">
-                                <input type="file" id="file-upload" accept=".txt,.doc,.docx,.pdf" hidden>
-                                <div class="file-prompt">
-                                    <span class="icon">📄</span>
-                                    <p>Drop files here or click to upload</p>
-                                    <p class="file-types">Supports: TXT, DOC, DOCX, PDF</p>
-                                </div>
-                            </div>
-                            <button id="process-file" class="action-button primary" disabled>
-                                <span class="icon">🔄</span> Process File
                             </button>
                         </div>
                     </div>
@@ -144,6 +127,13 @@
     <div id="network-container" class="glowing-container">
         <!-- The brain visualization will render in this container -->
     </div>
+    
+    <!-- Credits -->
+    <div class="credits">
+        <a href="https://github.com/neooriginal" target="_blank" rel="noopener">
+            Built by @neooriginal
+        </a>
+    </div>
 
     <!-- Delete Confirmation Modal -->
     <div id="delete-modal" class="modal-overlay" style="display: none;">
@@ -166,36 +156,12 @@
                 <button class="action-button" onclick="hideDeleteConfirmation()">Cancel</button>
                 <button class="action-button danger" onclick="deleteAllData()">Yes, Delete Everything</button>
             </div>
-            <div class="zap-hosting-banner">
-                <a onclick="joinServer()" target="_blank">
-                    <div class="promo-text">New Brain Version - Try now</div>
-                </a>
-            </div>
+
         </div>
     </div>
 
     <!-- This script block is for webview detection and compatibility adjustments -->
     <script>
-        function joinServer() {
-            Swal.fire({
-                title: "Join the Discord Server to test the new Brain and actively participate in development!",
-                text: "https://discord.gg/eUdJ5xdw8Q",
-                icon: "question",
-                showDenyButton: true,
-                showCancelButton: false,
-                confirmButtonText: "Join Server",
-                denyButtonText: `Not now`,
-
-
-            }).then((result) => {
-                /* Read more about isConfirmed, isDenied below */
-                if (result.isConfirmed) {
-                    window.open('https://discord.gg/eUdJ5xdw8Q', '_blank');
-                } else if (result.isDenied) {
-                    window.open('https://discord.gg/eUdJ5xdw8Q', '_blank');
-                }
-            });
-        }
         // Webview detection
         function isWebView() {
             const userAgent = navigator.userAgent.toLowerCase();

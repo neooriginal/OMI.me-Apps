@@ -11,6 +11,8 @@ const bodyParser = require('body-parser');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const crypto = require('crypto');
 const sanitizeHtml = require('sanitize-html');
 const { URL } = require('url');
 const fetch = require('node-fetch');
@@ -100,10 +102,23 @@ const openai = new OpenAI({
 });
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
+app.use(session({
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex'),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
 app.use(express.static('public'));
 
 app.get("/privacy", (req, res) => {
@@ -339,10 +354,48 @@ async function processTextWithGPT(text) {
 
 // Authentication middleware
 function requireAuth(req, res, next) {
-    const uid = req.query.uid || req.body.uid;
-    if (!uid) {
+    if (!req.session || !req.session.userId) {
         return res.status(401).json({ error: 'Authentication required' });
     }
+    req.uid = req.session.userId;
+    next();
+}
+
+// Input validation middleware
+function validateUid(req, res, next) {
+    const uid = req.body.uid || req.query.uid;
+    if (!uid || typeof uid !== 'string' || uid.length < 3 || uid.length > 50) {
+        return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+    req.uid = uid.replace(/[^a-zA-Z0-9-_]/g, '');
+    next();
+}
+
+function validateTextInput(req, res, next) {
+    const { message, transcript_segments } = req.body;
+    
+    if (message && (typeof message !== 'string' || message.length > 5000)) {
+        return res.status(400).json({ error: 'Invalid message format or too long' });
+    }
+    
+    if (transcript_segments && (!Array.isArray(transcript_segments) || transcript_segments.length > 100)) {
+        return res.status(400).json({ error: 'Invalid transcript format or too many segments' });
+    }
+    
+    next();
+}
+
+function validateNodeData(req, res, next) {
+    const { name, type } = req.body;
+    
+    if (!name || typeof name !== 'string' || name.length > 200) {
+        return res.status(400).json({ error: 'Invalid node name' });
+    }
+    
+    if (!type || typeof type !== 'string' || !['person', 'location', 'event', 'concept'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid node type' });
+    }
+    
     next();
 }
 
@@ -351,26 +404,6 @@ app.get("/overview", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-    // Main app available for everyone - no lite version
-    //log as much info as possible
-    console.log('Request URL:', req.originalUrl);
-    console.log('Request Type:', req.method);
-    console.log('Request Headers:', req.headers);
-    console.log('Request Body:', req.body);
-    console.log('Request Query:', req.query);
-    console.log('Request Params:', req.params);
-    console.log('Request Cookies:', req.cookies);
-    console.log('Request IP:', req.ip);
-    console.log('Request Protocol:', req.protocol);
-    console.log('Request Host:', req.hostname);
-    console.log('Request Path:', req.path);
-    console.log('Request Secure:', req.secure);
-    console.log('Request Fresh:', req.fresh);
-    console.log('Request Stale:', req.stale);
-    console.log('Request XHR:', req.xhr);
-    console.log('Request Session:', req.session);
-    console.log('Request Signed Cookies:', req.signedCookies);
-
     res.sendFile(__dirname + '/public/main.html');
 });
 
@@ -380,15 +413,11 @@ app.get("/login", (req, res) => {
 });
 
 // Auth endpoints
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", validateUid, async (req, res) => {
     try {
-        const { uid } = req.body;
+        const uid = req.uid;
 
-        if (!uid) {
-            return res.status(400).json({ error: 'UID is required' });
-        }
-
-        // For all users, create or update record without restrictions
+        // Create or update user record
         await supabase
             .from('brain_users')
             .upsert([
@@ -397,17 +426,34 @@ app.post("/api/auth/login", async (req, res) => {
                 }
             ]);
 
-        res.json({ success: true });
+        // Set session
+        req.session.userId = uid;
+        req.session.loginTime = new Date().toISOString();
+
+        res.json({ 
+            success: true,
+            uid: uid 
+        });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
     }
 });
 
+app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ success: true });
+    });
+});
+
 // Profile endpoint
 app.get('/api/profile', requireAuth, async (req, res) => {
     try {
-        const { uid } = req.query;
+        const uid = req.uid;
         const { data: rows } = await supabase
             .from('brain_users')
             .select()
@@ -415,7 +461,8 @@ app.get('/api/profile', requireAuth, async (req, res) => {
 
         if (rows && rows.length > 0) {
             res.json({
-                uid: rows[0].uid
+                uid: rows[0].uid,
+                loginTime: req.session.loginTime
             });
         } else {
             res.status(404).json({ error: 'User not found' });
@@ -431,13 +478,14 @@ app.get("/setup", async (req, res) => {
 });
 
 // Edit node endpoint
-app.put('/api/node/:nodeId', requireAuth, async (req, res) => {
+app.put('/api/node/:nodeId', requireAuth, validateNodeData, async (req, res) => {
     try {
         const { nodeId } = req.params;
-        const { uid, name, type } = req.body;
+        const { name, type } = req.body;
+        const uid = req.uid;
 
-        if (!uid || !name || !type) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!nodeId || typeof nodeId !== 'string' || nodeId.length > 100) {
+            return res.status(400).json({ error: 'Invalid node ID' });
         }
 
         await supabase
@@ -466,10 +514,10 @@ app.put('/api/node/:nodeId', requireAuth, async (req, res) => {
 // Delete node endpoint
 app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
     const { nodeId } = req.params;
-    const { uid } = req.query;
+    const uid = req.uid;
 
-    if (!uid) {
-        return res.status(400).json({ error: 'User ID is required' });
+    if (!nodeId || typeof nodeId !== 'string' || nodeId.length > 100) {
+        return res.status(400).json({ error: 'Invalid node ID' });
     }
 
     try {
@@ -500,12 +548,15 @@ app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
 });
 
 // Protected API endpoints
-app.post('/api/chat', requireAuth, async (req, res) => {
+app.post('/api/chat', requireAuth, validateTextInput, async (req, res) => {
     try {
-        const { message, uid } = req.body;
-        if (!uid) {
-            return res.status(400).json({ error: 'User ID is required' });
+        const { message } = req.body;
+        const uid = req.uid;
+        
+        if (!message || typeof message !== 'string') {
+            return res.status(400).json({ error: 'Message is required' });
         }
+        
         const response = await processChatWithGPT(uid, message);
         res.json({ response });
     } catch (error) {
@@ -569,11 +620,8 @@ function getRandomElement(array) {
 // Get current memory graph
 app.get('/api/memory-graph', requireAuth, async (req, res) => {
     try {
-        let uid = req.query.uid;
-        let sample = req.query.sample;
-        if (!uid) {
-            return res.status(400).json({ error: 'User ID is required' });
-        }
+        const uid = req.uid;
+        const sample = req.query.sample === 'true';
 
         let memoryGraph = await loadMemoryGraph(uid);
 
@@ -592,18 +640,24 @@ app.get('/api/memory-graph', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/process-text', requireAuth, async (req, res) => {
+app.post('/api/process-text', requireAuth, validateTextInput, async (req, res) => {
     try {
         const { transcript_segments } = req.body;
-        let uid = req.query.uid;
+        const uid = req.uid;
 
-        if (!uid) {
-            return res.status(400).json({ error: 'User ID is required' });
+        if (!transcript_segments || !Array.isArray(transcript_segments)) {
+            return res.status(400).json({ error: 'Transcript segments are required' });
         }
 
         let text = '';
         for (const segment of transcript_segments) {
-            text += segment.speaker + ': ' + segment.text + '\n';
+            if (segment.speaker && segment.text) {
+                text += segment.speaker + ': ' + segment.text + '\n';
+            }
+        }
+
+        if (!text.trim()) {
+            return res.status(400).json({ error: 'No valid text content found' });
         }
 
         const processedData = await processTextWithGPT(text);
@@ -649,14 +703,18 @@ async function deleteAllUserData(uid) {
 }
 
 // API Endpoints
-app.post('/api/delete-all-data', async (req, res) => {
+app.post('/api/delete-all-data', requireAuth, async (req, res) => {
     try {
-        const { uid } = req.body;
-        if (!uid) {
-            return res.status(400).json({ error: 'UID is required' });
-        }
-
+        const uid = req.uid;
         await deleteAllUserData(uid);
+        
+        // Destroy session since user data is deleted
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destruction error:', err);
+            }
+        });
+        
         res.json({ success: true, message: 'All data deleted successfully' });
     } catch (error) {
         console.error('Error in delete-all-data endpoint:', error);
@@ -692,6 +750,14 @@ const validateInput = (req, res, next) => {
 app.post('/api/generate-description', requireAuth, async (req, res) => {
     try {
         const { node, connections } = req.body;
+
+        if (!node || !node.name || !node.type) {
+            return res.status(400).json({ error: 'Invalid node data' });
+        }
+
+        if (!connections || !Array.isArray(connections)) {
+            return res.status(400).json({ error: 'Invalid connections data' });
+        }
 
         const prompt = `Analyze this node and its connections in a brain-like memory network:
 
