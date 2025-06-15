@@ -99,6 +99,22 @@ const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY
 });
 
+// Fix for ERR_TOO_MANY_REDIRECTS on production
+app.set('trust proxy', true);
+
+// Force HTTPS redirect only if not already HTTPS and redirects are enabled
+app.use((req, res, next) => {
+    if (process.env.DISABLE_HTTPS_REDIRECT === 'true') {
+        return next();
+    }
+    
+    if (req.header('x-forwarded-proto') !== 'https' && req.hostname !== 'localhost' && process.env.NODE_ENV === 'production') {
+        res.redirect(`https://${req.hostname}${req.url}`);
+    } else {
+        next();
+    }
+});
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -351,26 +367,8 @@ app.get("/overview", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-    // Main app available for everyone - no lite version
-    //log as much info as possible
-    console.log('Request URL:', req.originalUrl);
-    console.log('Request Type:', req.method);
-    console.log('Request Headers:', req.headers);
-    console.log('Request Body:', req.body);
-    console.log('Request Query:', req.query);
-    console.log('Request Params:', req.params);
-    console.log('Request Cookies:', req.cookies);
-    console.log('Request IP:', req.ip);
-    console.log('Request Protocol:', req.protocol);
-    console.log('Request Host:', req.hostname);
-    console.log('Request Path:', req.path);
-    console.log('Request Secure:', req.secure);
-    console.log('Request Fresh:', req.fresh);
-    console.log('Request Stale:', req.stale);
-    console.log('Request XHR:', req.xhr);
-    console.log('Request Session:', req.session);
-    console.log('Request Signed Cookies:', req.signedCookies);
-
+    // Main app available for everyone
+    console.log(`[${new Date().toISOString()}] GET / from ${req.ip}`);
     res.sendFile(__dirname + '/public/main.html');
 });
 
