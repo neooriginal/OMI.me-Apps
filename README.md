@@ -1,215 +1,224 @@
-# OMIApps Collection
+# OMI Apps Collection 🧠🤖✨
 
-A collection of AI-powered applications designed to enhance human-computer interaction. This repository contains three main applications: Brain, Friend, and Jarvis - all powered by Supabase for robust, scalable data management.
+**Three powerful AI applications designed to enhance your digital life** - all powered by modern cloud infrastructure for reliable performance.
 
-Originally made for OMI.me
+Originally created for [OMI.me](https://omi.me)
 
-## Applications
+## What You Get
 
-### 🧠 Brain
-An intelligent memory graph system that helps organize and connect information in a brain-like network. It processes conversations and text to extract entities and relationships, creating a dynamic knowledge graph that grows with use.
+### 🧠 **Brain** - Your AI Memory Assistant
+Transform conversations and text into an intelligent, searchable memory network. Brain remembers everything and helps you connect the dots.
 
-**Features:**
-- Entity and relationship extraction from text
-- Visual memory graph representation
-- Interactive node management
-- GPT-4 powered analysis
-- Content enrichment with images and descriptions
-- Session-based authentication with secure cookie management
-- Comprehensive input validation and sanitization
-- Auto-table creation on startup
-- Real-time memory graph updates
+**What it does:**
+- Automatically extracts people, places, and concepts from your conversations
+- Creates visual memory maps showing how everything connects
+- Enriches memories with images and detailed descriptions
+- Lets you explore your thoughts like never before
 
-<img width="1355" alt="Bildschirmfoto 2025-06-15 um 22 16 54" src="https://github.com/user-attachments/assets/8f1c25ae-bb36-48d1-aeaf-7891d41c9b32" />
+<img width="1355" alt="Brain App Interface" src="https://github.com/user-attachments/assets/8f1c25ae-bb36-48d1-aeaf-7891d41c9b32" />
 
+### 👥 **Friend** - Your AI Companion
+An intelligent conversation partner that remembers your interactions and provides meaningful responses.
 
-### 👥 Friend
-A conversational AI companion that provides engaging and meaningful interactions. Built with natural language processing capabilities to maintain context-aware conversations.
+**What it does:**
+- Maintains natural, context-aware conversations
+- Remembers your preferences and conversation history
+- Provides personalized responses based on your interactions
+- Tracks engagement and conversation insights
 
-**Features:**
-- Natural conversation flow with persistent storage
-- Context awareness with conversation history
-- Advanced user analytics and engagement tracking
-- JSONB-based flexible data storage
-- Memory retention and personality customization
-- Auto-table creation with optimized indexes
+![Friend App Interface](https://github.com/user-attachments/assets/ba3846fd-a6b0-4c0a-855d-97195b28adfe)
 
-![image](https://github.com/user-attachments/assets/ba3846fd-a6b0-4c0a-855d-97195b28adfe)
+### 🎯 **Jarvis** - Your AI Assistant
+A focused assistant that responds to specific triggers and helps with targeted tasks.
 
+**What it does:**
+- Responds to voice commands and text triggers
+- Processes requests efficiently and accurately
+- Maintains message history for context
+- Provides quick, precise assistance
 
-### 🎯 Jarvis
-A focused AI assistant that responds to specific triggers and provides targeted assistance. Inspired by Tony Stark's AI companion, it offers efficient and precise responses.
+---
 
-**Features:**
-- Trigger-based responses with persistent message buffering
-- Task automation and message queuing
-- Efficient message processing with timestamp handling
-- Customizable command system
-- In-memory processing with database persistence
+## 🚀 Quick Start (5 Minutes)
 
-## Setup Instructions
+**Prerequisites:** You'll need:
+- A [Supabase](https://supabase.com) account (free)
+- An [OpenRouter](https://openrouter.ai) API key (for AI features)
+- Docker installed on your computer
 
-### Prerequisites
-- Node.js (v16 or higher)
-- A Supabase account and project
-- npm or yarn package manager
+### Step 1: Get Your Accounts Ready
 
-### Database Setup
+1. **Create a Supabase project** at [supabase.com](https://supabase.com)
+   - Note your project URL and API key
+   
+2. **Get an OpenRouter API key** at [openrouter.ai](https://openrouter.ai)
+   - Sign up and generate an API key
 
-1. **Create a Supabase Project:**
-   - Go to [supabase.com](https://supabase.com) and create a new project
-   - Note your project URL and anon key from the project settings
+### Step 2: Set Up the Database
 
-2. **Run Database Setup:**
-   ```bash
-   # Connect to your Supabase project and run the setup script
-   # Copy the contents of setup-supabase.sql and run it in your Supabase SQL editor
-   ```
+1. In your Supabase dashboard, go to the SQL Editor
+2. Copy and paste the contents of `setup-supabase.sql` (from this repository)
+3. Run the script - this creates all the necessary tables
 
-   The setup script will create:
-   - All required tables with proper schemas
-   - Indexes for optimal performance  
-   - Row Level Security (RLS) policies
-   - An `exec_sql` function for programmatic table creation
+### Step 3: Launch the Apps
 
-### Installation
-
-1. **Clone the repository:**
 ```bash
+# Download the apps
 git clone https://github.com/neooriginal/OMI.me-Apps.git
 cd "OMI.me-Apps"
+
+# Configure your settings
+cp docker.env.example .env
 ```
 
-2. **Set up each application:**
-
-#### Brain App
-```bash
-cd Brain
-npm install
-```
-
-Create a `.env` file with:
+Edit the `.env` file with your information:
 ```env
 SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_ANON_KEY=your_supabase_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
-SESSION_SECRET=your_secure_session_secret
+SESSION_SECRET=any_random_string_here
 FRONTEND_URL=http://localhost:3000
-PORT=3000
-NODE_ENV=development
 ```
-
-#### Friend App
-```bash
-cd ../Friend
-npm install
-```
-
-Create a `.env` file with:
-```env
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-PORT=5000
-```
-
-#### Jarvis App
-```bash
-cd ../Jarvis
-npm install
-```
-
-Create a `.env` file with:
-```env
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-PORT=8000
-```
-
-### Running the Applications
-
-Each application can be run independently and will auto-create required tables on startup:
 
 ```bash
-# For Brain (with session management)
-cd Brain
-npm start
-
-# For Friend (with analytics)
-cd Friend
-npm start
-
-# For Jarvis (with message buffering)  
-cd Jarvis
-npm start
+# Start everything
+docker-compose up -d
 ```
 
-**Note:** On first startup, each app will automatically create its required database tables. Check the console output to confirm successful table creation.
+**That's it!** Your apps are now running:
+- **Brain:** http://localhost:3000
+- **Friend:** http://localhost:5000
+- **Jarvis:** http://localhost:8000
 
-### OMI App Integration
+---
 
-#### Brain App
-- Memory Creation Trigger:
-/api/process-text
+## 📱 Connect to OMI
 
-#### Friend App
-- Transcription Processed:
-/webhook
-
-- Enable Notifications
-
-#### Jarvis App
-- Transcription Processed:
-/webhook
-
-- Enable Notifications
-
-
-## Environment Variables
+To use these apps with your OMI device:
 
 ### Brain App
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_ANON_KEY`: Your Supabase anon key  
-- `OPENROUTER_API_KEY`: OpenRouter API key for GPT-4 access
-- `SESSION_SECRET`: Secure secret for session encryption (auto-generated if not provided)
-- `FRONTEND_URL`: Frontend URL for CORS (default: http://localhost:3000)
-- `PORT`: Server port (default: 3000)
-- `NODE_ENV`: Environment (development/production)
+- **Webhook URL:** `your_server_url/api/process-text`
+- **Type:** Memory Creation Trigger
 
-### Friend App
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_ANON_KEY`: Your Supabase anon key
-- `OPENROUTER_API_KEY`: OpenRouter API key for AI responses
-- `PORT`: Server port (default: 5000)
+### Friend App  
+- **Webhook URL:** `your_server_url/webhook`
+- **Type:** Transcription Processed
+- **Enable Notifications:** Yes
 
 ### Jarvis App
-- `PORT`: Server port (default: 5000)
+- **Webhook URL:** `your_server_url/webhook` 
+- **Type:** Transcription Processed
+- **Enable Notifications:** Yes
 
-## Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## 🛠️ Managing Your Apps
 
-## License
+### View Status
+```bash
+docker-compose ps
+```
 
-All applications are licensed under the MIT License with Attribution Requirements - see the LICENSE file in each application directory for details.
+### View Logs
+```bash
+# All apps
+docker-compose logs -f
 
-**Attribution Requirements:**
-- Any derivative works, modifications, or distributions must prominently credit Neo (github.com/neooriginal)
-- Credit must be visible in user-facing documentation, about pages, or similar locations
-- Credit must include a link to the original repository or author's GitHub profile
+# Specific app
+docker-compose logs brain
+```
 
-## Disclaimer
+### Update Apps
+```bash
+docker-compose pull && docker-compose up -d
+```
 
-THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+### Stop Everything
+```bash
+docker-compose down
+```
 
-The applications in this repository may use external APIs and services (such as OpenRouter, OpenAI, Supabase, etc.). Users are responsible for:
-- Obtaining their own API keys and database access
-- Complying with the terms of service of these external services
-- Managing any associated costs or usage limits
-- Ensuring compliance with data protection and privacy regulations in their jurisdiction
+---
 
-While efforts have been made to secure these applications, users should perform their own security review before deploying in production environments.
+## 🆘 Getting Help
 
-## Author
+### Common Issues
 
-Neo (github.com/neooriginal) - Copyright © 2025
+**Apps won't start?**
+- Check that your Supabase URL and API key are correct
+- Make sure Docker is running
+- Verify the database setup script ran successfully
+
+**Can't connect to OMI?**
+- Ensure your server is accessible from the internet
+- Check that the webhook URLs are correct
+- Verify your firewall allows connections on the app ports
+
+**Performance issues?**
+- Check Docker resource limits
+- Monitor app logs for errors
+- Ensure your Supabase project has sufficient resources
+
+### Need More Help?
+- Check the logs: `docker-compose logs`
+- Restart services: `docker-compose restart`
+- Report issues on GitHub
+
+---
+
+## 🔧 Advanced Options
+
+<details>
+<summary>Manual Installation (Not Recommended)</summary>
+
+If you prefer not to use Docker, you can install each app manually:
+
+**Requirements:** Node.js v16+, npm
+
+```bash
+# For each app (Brain, Friend, Jarvis)
+cd Brain  # or Friend, or Jarvis
+npm install
+
+# Create .env file with your settings
+SUPABASE_URL=your_url
+SUPABASE_ANON_KEY=your_key
+OPENROUTER_API_KEY=your_key
+PORT=3000  # 5000 for Friend, 8000 for Jarvis
+
+# Start the app
+npm start
+```
+</details>
+
+<details>
+<summary>Using Pre-built Docker Images</summary>
+
+You can also run individual apps using pre-built images:
+
+```bash
+# Run individual apps
+docker run -d -p 3000:3000 --env-file .env ghcr.io/neooriginal/omi.me-apps/brain:latest
+docker run -d -p 5000:5000 --env-file .env ghcr.io/neooriginal/omi.me-apps/friend:latest
+docker run -d -p 8000:8000 --env-file .env ghcr.io/neooriginal/omi.me-apps/jarvis:latest
+```
+</details>
+
+---
+
+## 📄 License & Credits
+
+Created by **Neo** ([@neooriginal](https://github.com/neooriginal)) © 2025
+
+**MIT License with Attribution** - You're free to use, modify, and distribute these apps. Just give credit where it's due!
+
+---
+
+## ⚠️ Important Notes
+
+- These apps use external AI services (OpenRouter) - usage may incur costs
+- You're responsible for securing your own deployments
+- Always keep your API keys private and secure
+- Review privacy settings in Supabase for your use case
+
+**Support the Project:** If you find these apps useful, consider starring the repository and sharing with others!
