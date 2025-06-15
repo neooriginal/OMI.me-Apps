@@ -143,32 +143,6 @@ docker-compose down
 
 ---
 
-## 🆘 Getting Help
-
-### Common Issues
-
-**Apps won't start?**
-- Check that your Supabase URL and API key are correct
-- Make sure Docker is running
-- Verify the database setup script ran successfully
-
-**Can't connect to OMI?**
-- Ensure your server is accessible from the internet
-- Check that the webhook URLs are correct
-- Verify your firewall allows connections on the app ports
-
-**Performance issues?**
-- Check Docker resource limits
-- Monitor app logs for errors
-- Ensure your Supabase project has sufficient resources
-
-### Need More Help?
-- Check the logs: `docker-compose logs`
-- Restart services: `docker-compose restart`
-- Report issues on GitHub
-
----
-
 ## 🔧 Advanced Options
 
 <details>
