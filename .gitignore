@@ -3,5 +3,7 @@
 /Jarvis/node_modules
 Brain/.env
 Friend/package-lock.json
+Brain/package-lock.json
+Jarvis/package-lock.json
 Friend/.env
 .DS_Store
