@@ -20,12 +20,8 @@ An intelligent memory graph system that helps organize and connect information i
 - Auto-table creation on startup
 - Real-time memory graph updates
 
-**New Security Features:**
-- Express-session for secure authentication
-- Input validation middleware for all endpoints
-- CSRF protection and sanitized HTML inputs
-- Configurable CORS with credential support
-- Rate limiting and request size limits
+<img width="1355" alt="Bildschirmfoto 2025-06-15 um 22 16 54" src="https://github.com/user-attachments/assets/8f1c25ae-bb36-48d1-aeaf-7891d41c9b32" />
+
 
 ### 👥 Friend
 A conversational AI companion that provides engaging and meaningful interactions. Built with natural language processing capabilities to maintain context-aware conversations.
@@ -37,6 +33,9 @@ A conversational AI companion that provides engaging and meaningful interactions
 - JSONB-based flexible data storage
 - Memory retention and personality customization
 - Auto-table creation with optimized indexes
+
+![image](https://github.com/user-attachments/assets/ba3846fd-a6b0-4c0a-855d-97195b28adfe)
+
 
 ### 🎯 Jarvis
 A focused AI assistant that responds to specific triggers and provides targeted assistance. Inspired by Tony Stark's AI companion, it offers efficient and precise responses.
