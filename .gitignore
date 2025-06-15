@@ -6,4 +6,5 @@ Friend/package-lock.json
 Brain/package-lock.json
 Jarvis/package-lock.json
 Friend/.env
+Jarvis/.env
 .DS_Store
