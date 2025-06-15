@@ -46,6 +46,8 @@ A focused assistant that responds to specific triggers and helps with targeted t
 - An [OpenRouter](https://openrouter.ai) API key (for AI features)
 - Docker installed on your computer
 
+> **Note:** This setup uses pre-built Docker images from GitHub Container Registry for fastest deployment.
+
 ### Step 1: Get Your Accounts Ready
 
 1. **Create a Supabase project** at [supabase.com](https://supabase.com)
@@ -81,11 +83,11 @@ FRONTEND_URL=http://localhost:3000
 ```
 
 ```bash
-# Start everything
+# Start everything (pulls pre-built images automatically)
 docker-compose up -d
 ```
 
-**That's it!** Your apps are now running:
+**That's it!** Docker will automatically download the pre-built images and start your apps:
 - **Brain:** http://localhost:3000
 - **Friend:** http://localhost:5000
 - **Jarvis:** http://localhost:8000
@@ -130,6 +132,7 @@ docker-compose logs brain
 
 ### Update Apps
 ```bash
+# Pull latest pre-built images and restart
 docker-compose pull && docker-compose up -d
 ```
 
@@ -171,7 +174,7 @@ docker-compose down
 <details>
 <summary>Manual Installation (Not Recommended)</summary>
 
-If you prefer not to use Docker, you can install each app manually:
+If you prefer not to use Docker, you can build and install each app manually (requires more setup):
 
 **Requirements:** Node.js v16+, npm
 
@@ -192,16 +195,18 @@ npm start
 </details>
 
 <details>
-<summary>Using Pre-built Docker Images</summary>
+<summary>Run Individual Apps (Alternative Method)</summary>
 
-You can also run individual apps using pre-built images:
+You can also run individual apps directly using pre-built images:
 
 ```bash
-# Run individual apps
+# Run individual apps with pre-built images
 docker run -d -p 3000:3000 --env-file .env ghcr.io/neooriginal/omi.me-apps/brain:latest
 docker run -d -p 5000:5000 --env-file .env ghcr.io/neooriginal/omi.me-apps/friend:latest
 docker run -d -p 8000:8000 --env-file .env ghcr.io/neooriginal/omi.me-apps/jarvis:latest
 ```
+
+This method gives you more control over individual services but Docker Compose is recommended for most users.
 </details>
 
 ---
@@ -222,3 +227,37 @@ Created by **Neo** ([@neooriginal](https://github.com/neooriginal)) © 2025
 - Review privacy settings in Supabase for your use case
 
 **Support the Project:** If you find these apps useful, consider starring the repository and sharing with others!
+
+---
+
+## 📋 Disclaimer & Liability
+
+**THIS SOFTWARE IS PROVIDED "AS IS"** without any warranty of any kind. The author(s) are not responsible for:
+
+- **Data Loss or Corruption** - Always backup your important data
+- **Security Vulnerabilities** - You are responsible for securing your deployment
+- **Service Costs** - API usage fees from external services (OpenRouter, Supabase, etc.)
+- **Downtime or Outages** - No guarantee of uptime or availability
+- **Compliance Issues** - Ensure compliance with your local laws and regulations
+- **Third-party Services** - Issues with external APIs or services used by these apps
+
+**BY USING THESE APPLICATIONS, YOU ACKNOWLEDGE THAT:**
+- You understand the risks involved in running self-hosted software
+- You are solely responsible for your deployment and its security
+- You will not hold the author(s) liable for any damages or losses
+- You are responsible for obtaining proper licenses and API keys
+- You will comply with all applicable terms of service and regulations
+
+**EXTERNAL SERVICES:** These applications integrate with third-party services (OpenRouter, Supabase, etc.). You are responsible for:
+- Reading and accepting their terms of service
+- Managing your own accounts and API keys
+- Monitoring and controlling your usage and costs
+- Ensuring compliance with their policies and your local regulations
+
+**SECURITY NOTICE:** While these applications include security measures, no software is 100% secure. You should:
+- Keep your system and dependencies updated
+- Use strong, unique passwords and API keys
+- Regularly monitor your deployments for unusual activity
+- Implement additional security measures as needed for your environment
+
+Use at your own risk. The author(s) provide this software as-is for educational and personal use.
