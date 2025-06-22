@@ -403,7 +403,30 @@ app.get("/overview", (req, res) => {
     res.sendFile(__dirname + '/public/overview.html');
 });
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
+    const uid = req.query.uid;
+    
+    if (uid && typeof uid === 'string' && uid.length >= 3 && uid.length <= 50) {
+        try {
+            const sanitizedUid = uid.replace(/[^a-zA-Z0-9-_]/g, '');
+            
+            await supabase
+                .from('brain_users')
+                .upsert([
+                    {
+                        uid: sanitizedUid
+                    }
+                ]);
+
+            req.session.userId = sanitizedUid;
+            req.session.loginTime = new Date().toISOString();
+            
+            return res.redirect('/');
+        } catch (error) {
+            console.error('Auto-login error:', error);
+        }
+    }
+    
     res.sendFile(__dirname + '/public/main.html');
 });
 
