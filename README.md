@@ -7,9 +7,11 @@ Originally created for [OMI.me](https://omi.me)
 ## What You Get
 
 ### 🧠 **Brain** - Your AI Memory Assistant
+
 Transform conversations and text into an intelligent, searchable memory network. Brain remembers everything and helps you connect the dots.
 
 **What it does:**
+
 - Automatically extracts people, places, and concepts from your conversations
 - Creates visual memory maps showing how everything connects
 - Enriches memories with images and detailed descriptions
@@ -18,9 +20,11 @@ Transform conversations and text into an intelligent, searchable memory network.
 <img width="1355" alt="Brain App Interface" src="https://github.com/user-attachments/assets/8f1c25ae-bb36-48d1-aeaf-7891d41c9b32" />
 
 ### 👥 **Friend** - Your AI Companion
+
 An intelligent conversation partner that remembers your interactions and provides meaningful responses.
 
 **What it does:**
+
 - Maintains natural, context-aware conversations
 - Remembers your preferences and conversation history
 - Provides personalized responses based on your interactions
@@ -29,9 +33,11 @@ An intelligent conversation partner that remembers your interactions and provide
 ![Friend App Interface](https://github.com/user-attachments/assets/ba3846fd-a6b0-4c0a-855d-97195b28adfe)
 
 ### 🎯 **Jarvis** - Your AI Assistant
+
 A focused assistant that responds to specific triggers and helps with targeted tasks.
 
 **What it does:**
+
 - Responds to voice commands and text triggers
 - Processes requests efficiently and accurately
 - Maintains message history for context
@@ -42,6 +48,7 @@ A focused assistant that responds to specific triggers and helps with targeted t
 ## 🚀 Quick Start (5 Minutes)
 
 **Prerequisites:** You'll need:
+
 - A [Supabase](https://supabase.com) account (free)
 - An [OpenRouter](https://openrouter.ai) API key (for AI features)
 - Docker installed on your computer
@@ -52,7 +59,6 @@ A focused assistant that responds to specific triggers and helps with targeted t
 
 1. **Create a Supabase project** at [supabase.com](https://supabase.com)
    - Note your project URL and API key
-   
 2. **Get an OpenRouter API key** at [openrouter.ai](https://openrouter.ai)
    - Sign up and generate an API key
 
@@ -74,6 +80,7 @@ cp docker.env.example .env
 ```
 
 Edit the `.env` file with your information:
+
 ```env
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_api_key
@@ -88,40 +95,56 @@ docker-compose up -d
 ```
 
 **That's it!** Docker will automatically download the pre-built images and start your apps:
+
 - **Brain:** http://localhost:3000
 - **Friend:** http://localhost:5000
 - **Jarvis:** http://localhost:8000
 
 ---
 
-## 📱 Connect to OMI
+## 📱 Submit app in OMI App Store
 
-To use these apps with your OMI device:
+1. Open OMI App
+2. Navigate to the "Explore" (or Apps) Tab
+3. Press "Create your own" at the top
+4. Press "Create an App"
+5. Enter Image, Name, Category, Description, Preview
+6. Select External Integration Capability
 
 ### Brain App
-- **Webhook URL:** `your_server_url/api/process-text`
-- **Type:** Memory Creation Trigger
 
-### Friend App  
+7.  Select Conversation Creation as "Trigger Event"
+
+- **Webhook URL:** `your_server_url/api/process-text`
+
+### Friend App
+
+6.5. Also select Notification as Capability 7. Select Transcript Processed as "Trigger Event"
+
 - **Webhook URL:** `your_server_url/webhook`
-- **Type:** Transcription Processed
-- **Enable Notifications:** Yes
 
 ### Jarvis App
-- **Webhook URL:** `your_server_url/webhook` 
-- **Type:** Transcription Processed
-- **Enable Notifications:** Yes
+
+6.5. Also select Notification as Capability 7. Select Transcript Processed as "Trigger Event"
+
+- **Webhook URL:** `your_server_url/webhook`
+
+8. Put your server url as "App Home URL"
+9. Agree to ToS and Privacy Policy
+10. Submit and install the app
 
 ---
 
 ## 🛠️ Managing Your Apps
 
 ### View Status
+
 ```bash
 docker-compose ps
 ```
 
 ### View Logs
+
 ```bash
 # All apps
 docker-compose logs -f
@@ -131,12 +154,14 @@ docker-compose logs brain
 ```
 
 ### Update Apps
+
 ```bash
 # Pull latest pre-built images and restart
 docker-compose pull && docker-compose up -d
 ```
 
 ### Stop Everything
+
 ```bash
 docker-compose down
 ```
@@ -166,6 +191,7 @@ PORT=3000  # 5000 for Friend, 8000 for Jarvis
 # Start the app
 npm start
 ```
+
 </details>
 
 <details>
@@ -181,6 +207,7 @@ docker run -d -p 8000:8000 --env-file .env ghcr.io/neooriginal/omi.me-apps/jarvi
 ```
 
 This method gives you more control over individual services but Docker Compose is recommended for most users.
+
 </details>
 
 ---
@@ -216,6 +243,7 @@ Created by **Neo** ([@neooriginal](https://github.com/neooriginal)) © 2025
 - **Third-party Services** - Issues with external APIs or services used by these apps
 
 **BY USING THESE APPLICATIONS, YOU ACKNOWLEDGE THAT:**
+
 - You understand the risks involved in running self-hosted software
 - You are solely responsible for your deployment and its security
 - You will not hold the author(s) liable for any damages or losses
@@ -223,12 +251,14 @@ Created by **Neo** ([@neooriginal](https://github.com/neooriginal)) © 2025
 - You will comply with all applicable terms of service and regulations
 
 **EXTERNAL SERVICES:** These applications integrate with third-party services (OpenRouter, Supabase, etc.). You are responsible for:
+
 - Reading and accepting their terms of service
 - Managing your own accounts and API keys
 - Monitoring and controlling your usage and costs
 - Ensuring compliance with their policies and your local regulations
 
 **SECURITY NOTICE:** While these applications include security measures, no software is 100% secure. You should:
+
 - Keep your system and dependencies updated
 - Use strong, unique passwords and API keys
 - Regularly monitor your deployments for unusual activity
