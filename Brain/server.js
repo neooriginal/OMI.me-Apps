@@ -105,7 +105,6 @@ const openai = new OpenAI({
 app.use(cors({
     origin: [
         process.env.FRONTEND_URL || 'http://localhost:3000',
-        'https://brain.neoserver.dev',
         'http://localhost:3000'
     ],
     credentials: true
