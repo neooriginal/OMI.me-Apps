@@ -24,10 +24,10 @@ async function apiCall(endpoint, options = {}) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
         };
 
         // Session-based authentication - no need to manually add uid
-
         const response = await fetch(endpoint, { ...baseOptions, ...options });
         if (response.status === 401) {
             window.location.href = '/login.html';
