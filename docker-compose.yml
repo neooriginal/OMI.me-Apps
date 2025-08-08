@@ -13,7 +13,7 @@ services:
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - SESSION_SECRET=${SESSION_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - FRONTEND_URL_BRAIN=${FRONTEND_URL_BRAIN:-http://localhost:3000}
     restart: unless-stopped
     networks:
       - omi-network
