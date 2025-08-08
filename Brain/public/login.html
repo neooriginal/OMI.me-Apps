@@ -210,10 +210,10 @@
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/x-www-form-urlencoded'
                     },
                     credentials: 'include',
-                    body: JSON.stringify({ uid })
+                    body: new URLSearchParams({ uid })
                 });
 
                 const data = await response.json();
