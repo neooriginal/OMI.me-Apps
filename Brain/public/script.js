@@ -1,11 +1,34 @@
 // Authentication functions
-function checkAuth() {
-    const uid = localStorage.getItem('uid') || new URLSearchParams(window.location.search).get('uid');
-    if (!uid) {
-        window.location.href = '/login.html';
-        return null;
+async function checkAuth() {
+    try {
+        // First check if we have session-based authentication with the server
+        const response = await fetch('/api/profile', {
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // Store uid in localStorage for convenience
+            localStorage.setItem('uid', data.uid);
+            return data.uid;
+        } else if (response.status === 401) {
+            // No valid session, redirect to login
+            localStorage.removeItem('uid');
+            window.location.href = '/login.html';
+            return null;
+        } else {
+            throw new Error('Server error');
+        }
+    } catch (error) {
+        console.error('Auth check error:', error);
+        // If there's a network error, try localStorage as fallback
+        const uid = localStorage.getItem('uid') || new URLSearchParams(window.location.search).get('uid');
+        if (!uid) {
+            window.location.href = '/login.html';
+            return null;
+        }
+        return uid;
     }
-    return uid;
 }
 
 function logout() {
@@ -16,9 +39,6 @@ function logout() {
 
 // API call helper
 async function apiCall(endpoint, options = {}) {
-    const uid = checkAuth();
-    if (!uid) return;
-
     try {
         const baseOptions = {
             headers: {
@@ -30,6 +50,7 @@ async function apiCall(endpoint, options = {}) {
         // Session-based authentication - no need to manually add uid
         const response = await fetch(endpoint, { ...baseOptions, ...options });
         if (response.status === 401) {
+            localStorage.removeItem('uid');
             window.location.href = '/login.html';
             return null;
         }
@@ -729,20 +750,16 @@ function animate() {
 }
 
 // Initialize everything when the document is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Check authentication
-    const urlParams = new URLSearchParams(window.location.search);
-    const uid = localStorage.getItem('uid') || urlParams.get('uid');
-
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check authentication with server
+    const uid = await checkAuth();
     if (!uid) {
-        window.location.href = '/login.html';
-        return;
+        return; // checkAuth will redirect to login if needed
     }
 
-    // Store UID in localStorage if it's in the URL
+    // Clean URL of any uid parameter
+    const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('uid')) {
-        localStorage.setItem('uid', uid);
-        // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
