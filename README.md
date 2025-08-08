@@ -86,7 +86,7 @@ SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
 SESSION_SECRET=any_random_string_here
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL_BRAIN=http://localhost:3000
 ```
 
 ```bash
