@@ -104,7 +104,7 @@ const openai = new OpenAI({
 // Middleware
 app.use(cors({
     origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
+        process.env.FRONTEND_URL_BRAIN || 'http://localhost:3000',
         'http://localhost:3000'
     ],
     credentials: true
@@ -117,7 +117,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL?.includes('https'),
+        secure: process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL_BRAIN?.includes('https'),
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Allow cross-site for production
