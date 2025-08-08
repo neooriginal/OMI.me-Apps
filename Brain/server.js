@@ -105,7 +105,8 @@ const openai = new OpenAI({
 app.use(cors({
     origin: [
         process.env.FRONTEND_URL_BRAIN || 'http://localhost:3000',
-        'http://localhost:3000'
+        'http://localhost:3000',
+        'https://brain.neoserver.dev'
     ],
     credentials: true
 }));
@@ -120,7 +121,8 @@ app.use(session({
         secure: process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL_BRAIN?.includes('https'),
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Allow cross-site for production
+        sameSite: 'lax' // Use lax for all environments to avoid cross-site issues
+        // Removed domain setting as it can cause issues with subdomains
     }
 }));
 app.use(express.static('public'));
@@ -358,9 +360,16 @@ async function processTextWithGPT(text) {
 
 // Authentication middleware
 function requireAuth(req, res, next) {
+    console.log('RequireAuth - Session ID:', req.sessionID);
+    console.log('RequireAuth - Session data:', req.session);
+    console.log('RequireAuth - Cookies:', req.headers.cookie);
+
     if (!req.session || !req.session.userId) {
+        console.log('RequireAuth - Authentication failed: No session or userId');
         return res.status(401).json({ error: 'Authentication required' });
     }
+
+    console.log('RequireAuth - Authentication successful for UID:', req.session.userId);
     req.uid = req.session.userId;
     next();
 }
