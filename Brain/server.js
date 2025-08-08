@@ -36,7 +36,7 @@ function handleDatabaseError(error, operation) {
 async function createTables() {
     try {
         console.log('Setting up Brain app tables...');
-        
+
         // Create brain_users table
         const { error: error1 } = await supabase.rpc('exec_sql', {
             sql_query: `
@@ -103,7 +103,11 @@ const openai = new OpenAI({
 
 // Middleware
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        'https://brain.neoserver.dev',
+        'http://localhost:3000'
+    ],
     credentials: true
 }));
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -114,9 +118,10 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL?.includes('https'),
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Allow cross-site for production
     }
 }));
 app.use(express.static('public'));
@@ -363,6 +368,7 @@ function requireAuth(req, res, next) {
 
 // Input validation middleware
 function validateUid(req, res, next) {
+    // Handle both JSON and form data
     const uid = req.body.uid || req.query.uid;
     if (!uid || typeof uid !== 'string' || uid.length < 3 || uid.length > 50) {
         return res.status(400).json({ error: 'Invalid user ID format' });
@@ -373,29 +379,29 @@ function validateUid(req, res, next) {
 
 function validateTextInput(req, res, next) {
     const { message, transcript_segments } = req.body;
-    
+
     if (message && (typeof message !== 'string' || message.length > 5000)) {
         return res.status(400).json({ error: 'Invalid message format or too long' });
     }
-    
+
     if (transcript_segments && (!Array.isArray(transcript_segments) || transcript_segments.length > 100)) {
         return res.status(400).json({ error: 'Invalid transcript format or too many segments' });
     }
-    
+
     next();
 }
 
 function validateNodeData(req, res, next) {
     const { name, type } = req.body;
-    
+
     if (!name || typeof name !== 'string' || name.length > 200) {
         return res.status(400).json({ error: 'Invalid node name' });
     }
-    
+
     if (!type || typeof type !== 'string' || !['person', 'location', 'event', 'concept'].includes(type)) {
         return res.status(400).json({ error: 'Invalid node type' });
     }
-    
+
     next();
 }
 
@@ -405,11 +411,11 @@ app.get("/overview", (req, res) => {
 
 app.get("/", async (req, res) => {
     const uid = req.query.uid;
-    
+
     if (uid && typeof uid === 'string' && uid.length >= 3 && uid.length <= 50) {
         try {
             const sanitizedUid = uid.replace(/[^a-zA-Z0-9-_]/g, '');
-            
+
             await supabase
                 .from('brain_users')
                 .upsert([
@@ -420,13 +426,13 @@ app.get("/", async (req, res) => {
 
             req.session.userId = sanitizedUid;
             req.session.loginTime = new Date().toISOString();
-            
+
             return res.redirect('/');
         } catch (error) {
             console.error('Auto-login error:', error);
         }
     }
-    
+
     res.sendFile(__dirname + '/public/main.html');
 });
 
@@ -449,13 +455,21 @@ app.post("/api/auth/login", validateUid, async (req, res) => {
                 }
             ]);
 
-        // Set session
+        // Set session and ensure it's saved
         req.session.userId = uid;
         req.session.loginTime = new Date().toISOString();
 
-        res.json({ 
-            success: true,
-            uid: uid 
+        // Force session save
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ error: 'Login failed' });
+            }
+
+            res.json({
+                success: true,
+                uid: uid
+            });
         });
     } catch (error) {
         console.error('Login error:', error);
@@ -575,11 +589,11 @@ app.post('/api/chat', requireAuth, validateTextInput, async (req, res) => {
     try {
         const { message } = req.body;
         const uid = req.uid;
-        
+
         if (!message || typeof message !== 'string') {
             return res.status(400).json({ error: 'Message is required' });
         }
-        
+
         const response = await processChatWithGPT(uid, message);
         res.json({ response });
     } catch (error) {
@@ -730,14 +744,14 @@ app.post('/api/delete-all-data', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
         await deleteAllUserData(uid);
-        
+
         // Destroy session since user data is deleted
         req.session.destroy((err) => {
             if (err) {
                 console.error('Session destruction error:', err);
             }
         });
-        
+
         res.json({ success: true, message: 'All data deleted successfully' });
     } catch (error) {
         console.error('Error in delete-all-data endpoint:', error);
