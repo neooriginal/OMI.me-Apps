@@ -6,7 +6,6 @@
 require('dotenv').config();
 const express = require('express');
 const OpenAI = require('openai');
-const cors = require('cors');
 const bodyParser = require('body-parser');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
@@ -94,7 +93,6 @@ createTables().catch(console.error);
 
 const app = express();
 const port = process.env.PORT || 3000;
-app.set('trust proxy', 1);
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -102,28 +100,14 @@ const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY
 });
 
-// Middleware
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
-const isSecure = process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL_BRAIN?.startsWith('https://');
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex'),
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: isSecure,
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: isSecure ? 'none' : 'lax' // Use 'none' for secure contexts to enable cross-site cookies
-        // Removed domain setting as it can cause issues with subdomains
-    }
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex')
 }));
-app.use(express.static('public'));
+app.use(express.static(__dirname + '/public'));
 
 app.get("/privacy", (req, res) => {
     res.sendFile(__dirname + '/public/privacy.html');
@@ -951,5 +935,5 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(port, () => {
-    console.log(`Server running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
+    console.log(`Server running on port ${port}`);
 });
