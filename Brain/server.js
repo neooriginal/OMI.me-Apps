@@ -3,7 +3,7 @@
  * All rights reserved.
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const OpenAI = require('openai');
 const bodyParser = require('body-parser');
@@ -104,9 +104,25 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
-app.use(session({
-    secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex')
-}));
+// Session configuration for production
+const sessionConfig = {
+    secret: process.env.SESSION_SECRET || 'brain-app-default-secret-please-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Only use secure cookies in production
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+    }
+};
+
+// Add domain setting for production if specified
+if (process.env.SESSION_DOMAIN) {
+    sessionConfig.cookie.domain = process.env.SESSION_DOMAIN;
+}
+
+app.use(session(sessionConfig));
 app.use(express.static(__dirname + '/public'));
 
 app.get("/privacy", (req, res) => {
@@ -345,10 +361,17 @@ function requireAuth(req, res, next) {
     console.log('RequireAuth - Session ID:', req.sessionID);
     console.log('RequireAuth - Session data:', req.session);
     console.log('RequireAuth - Cookies:', req.headers.cookie);
+    console.log('RequireAuth - User-Agent:', req.headers['user-agent']);
 
-    if (!req.session || !req.session.userId) {
-        console.log('RequireAuth - Authentication failed: No session or userId');
-        return res.status(401).json({ error: 'Authentication required' });
+    // Check if session exists and has userId
+    if (!req.session) {
+        console.log('RequireAuth - No session found');
+        return res.status(401).json({ error: 'No session - please login again' });
+    }
+
+    if (!req.session.userId) {
+        console.log('RequireAuth - Session exists but no userId');
+        return res.status(401).json({ error: 'Session invalid - please login again' });
     }
 
     console.log('RequireAuth - Authentication successful for UID:', req.session.userId);

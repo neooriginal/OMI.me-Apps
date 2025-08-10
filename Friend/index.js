@@ -15,11 +15,6 @@ const { body, validationResult, query } = require('express-validator');
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable CSP to avoid breaking existing functionality
-}));
-
 // Rate limiting
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
