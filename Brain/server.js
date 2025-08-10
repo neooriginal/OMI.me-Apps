@@ -94,6 +94,7 @@ createTables().catch(console.error);
 
 const app = express();
 const port = process.env.PORT || 3000;
+app.set('trust proxy', 1);
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -103,25 +104,22 @@ const openai = new OpenAI({
 
 // Middleware
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL_BRAIN || 'http://localhost:3000',
-        'http://localhost:3000',
-        'https://brain.neoserver.dev'
-    ],
+    origin: true,
     credentials: true
 }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
+const isSecure = process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL_BRAIN?.startsWith('https://');
 app.use(session({
     secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex'),
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production' || process.env.FRONTEND_URL_BRAIN?.includes('https'),
+        secure: isSecure,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'lax' // Use lax for all environments to avoid cross-site issues
+        sameSite: isSecure ? 'none' : 'lax' // Use 'none' for secure contexts to enable cross-site cookies
         // Removed domain setting as it can cause issues with subdomains
     }
 }));
