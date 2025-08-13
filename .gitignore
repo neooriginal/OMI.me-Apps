@@ -4,4 +4,5 @@
 Brain/.env
 Friend/.env
 Jarvis/.env
+.env
 .DS_Store
