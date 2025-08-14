@@ -1,31 +1,22 @@
 {
   "name": "jarvis-omi-assistant",
   "version": "2.0.0",
-  "description": "J.A.R.V.I.S. - Fully Autonomous AI Assistant with Apple Ecosystem Integration",
+  "description": "J.A.R.V.I.S. - AI Assistant for OMI with environment variable support",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "node test-jarvis.js",
-    "setup": "node setup.js"
+    "start": "node index.js"
   },
   "keywords": [
     "omi",
     "jarvis",
     "ai",
-    "assistant",
-    "apple",
-    "automation"
+    "assistant"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
-    "axios": "^1.11.0",
     "dotenv": "^17.2.1",
     "express": "^4.21.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
   }
 }
