@@ -24,6 +24,7 @@
     "express-validator": "^7.2.1",
     "fs": "^0.0.1-security",
     "helmet": "^8.1.0",
+    "openai": "^4.0.0",
     "winston": "^3.17.0"
   }
 }

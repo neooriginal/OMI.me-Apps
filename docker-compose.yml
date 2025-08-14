@@ -5,13 +5,13 @@ services:
     image: ghcr.io/neooriginal/omi.me-apps/brain:latest
     container_name: omi-brain
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SESSION_SECRET=${SESSION_SECRET}
       - FRONTEND_URL_BRAIN=${FRONTEND_URL_BRAIN:-http://localhost:3000}
     restart: unless-stopped
@@ -28,13 +28,13 @@ services:
     image: ghcr.io/neooriginal/omi.me-apps/friend:latest
     container_name: omi-friend
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
       - NODE_ENV=production
       - PORT=5000
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     restart: unless-stopped
     networks:
       - omi-network

@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 2025 Neo (github.com/neooriginal)
- * All rights reserved.
- */
-
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '../.env' });
 const app = express();
 
 // Initialize Supabase client

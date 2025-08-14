@@ -92,12 +92,17 @@ async function createTables() {
 createTables().catch(console.error);
 
 const app = express();
+app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
 const port = process.env.PORT || 3000;
 
-// Initialize OpenAI
+// Initialize OpenAI with OpenRouter
 const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
     baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY
+    defaultHeaders: {
+        "HTTP-Referer": "https://brain-latest.onrender.com",
+        "X-Title": "OMI Brain App"
+    }
 });
 
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -248,7 +253,7 @@ Memory Status: ${memoryGraph.nodes.length > 0 ?
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o",
+            model: "openai/gpt-4o-mini",
             messages: [
                 {
                     role: "system",
@@ -333,7 +338,7 @@ async function processTextWithGPT(text) {
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o",
+            model: "openai/gpt-4o-mini",
             messages: [
                 {
                     role: "system",
@@ -824,7 +829,7 @@ Provide a concise but insightful description that:
 Keep the description natural and engaging, focusing on the most meaningful connections.`;
 
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o",
+            model: "openai/gpt-4o-mini",
             messages: [
                 {
                     role: "system",
