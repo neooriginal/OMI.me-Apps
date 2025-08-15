@@ -4,6 +4,10 @@
 
 Originally created for [OMI.me](https://omi.me)
 
+## 🚀 1-Click Deploy to DigitalOcean
+
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/eulicesl/OMI.me-Apps/tree/main)
+
 ## What You Get
 
 ### 🧠 **Brain** - Your AI Memory Assistant
