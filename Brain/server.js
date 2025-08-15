@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2025 Neo (github.com/neooriginal)
- * All rights reserved.
- */
-
 require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const OpenAI = require('openai');
@@ -97,7 +92,7 @@ const port = process.env.PORT || 3000;
 
 // Initialize OpenAI with OpenRouter
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: "https://openrouter.ai/api/v1",
     defaultHeaders: {
         "HTTP-Referer": "https://brain-latest.onrender.com",
