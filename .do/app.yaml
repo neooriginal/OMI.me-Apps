@@ -1,90 +1,98 @@
-spec:
-  name: omi-apps
-  region: nyc
-  services:
-  - name: brain
-    github:
-      repo: eulicesl/OMI.me-Apps
-      branch: main
-      deploy_on_push: true
-    source_dir: Brain
-    build_command: npm install
-    run_command: npm start
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    http_port: 3000
-    routes:
-    - path: /
-    envs:
-    - key: NODE_ENV
-      value: "production"
-    - key: PORT
-      value: "3000"
-    - key: SUPABASE_URL
-      type: SECRET
-      value: "YOUR_SUPABASE_URL"
-    - key: SUPABASE_ANON_KEY
-      type: SECRET
-      value: "YOUR_SUPABASE_ANON_KEY"
-    - key: OPENROUTER_API_KEY
-      type: SECRET
-      value: "YOUR_OPENROUTER_API_KEY"
-    - key: SESSION_SECRET
-      type: SECRET
-      value: "YOUR_SESSION_SECRET"
+name: omi-apps
+region: nyc
+services:
+- build_command: cd Brain && npm install
+  environment_slug: node-js
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: eulicesl/OMI.me-Apps
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: brain
+  run_command: cd Brain && npm start
+  source_dir: /
+  envs:
+  - key: NODE_ENV
+    scope: RUN_TIME
+    value: production
+  - key: PORT
+    scope: RUN_TIME
+    value: "3000"
+  - key: SUPABASE_URL
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SUPABASE_URL
+  - key: SUPABASE_ANON_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SUPABASE_ANON_KEY
+  - key: OPENROUTER_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_OPENROUTER_API_KEY
+  - key: SESSION_SECRET
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SESSION_SECRET
 
-  - name: friend
-    github:
-      repo: eulicesl/OMI.me-Apps
-      branch: main
-      deploy_on_push: true
-    source_dir: Friend
-    build_command: npm install
-    run_command: npm start
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    http_port: 5000
-    routes:
-    - path: /friend
-    envs:
-    - key: NODE_ENV
-      value: "production"
-    - key: PORT
-      value: "5000"
-    - key: SUPABASE_URL
-      type: SECRET
-      value: "YOUR_SUPABASE_URL"
-    - key: SUPABASE_ANON_KEY
-      type: SECRET
-      value: "YOUR_SUPABASE_ANON_KEY"
-    - key: OPENROUTER_API_KEY
-      type: SECRET
-      value: "YOUR_OPENROUTER_API_KEY"
+- build_command: cd Friend && npm install
+  environment_slug: node-js
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: eulicesl/OMI.me-Apps
+  http_port: 5000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: friend
+  run_command: cd Friend && npm start
+  source_dir: /
+  envs:
+  - key: NODE_ENV
+    scope: RUN_TIME
+    value: production
+  - key: PORT
+    scope: RUN_TIME
+    value: "5000"
+  - key: SUPABASE_URL
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SUPABASE_URL
+  - key: SUPABASE_ANON_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SUPABASE_ANON_KEY
+  - key: OPENROUTER_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_OPENROUTER_API_KEY
 
-  - name: jarvis
-    github:
-      repo: eulicesl/OMI.me-Apps
-      branch: main
-      deploy_on_push: true
-    source_dir: Jarvis
-    build_command: npm install
-    run_command: npm start
-    environment_slug: node-js
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    http_port: 8000
-    routes:
-    - path: /jarvis
-    envs:
-    - key: NODE_ENV
-      value: "production"
-    - key: PORT
-      value: "8000"
-    - key: SUPABASE_URL
-      type: SECRET
-      value: "YOUR_SUPABASE_URL"
-    - key: SUPABASE_ANON_KEY
-      type: SECRET
-      value: "YOUR_SUPABASE_ANON_KEY"
+- build_command: cd Jarvis && npm install
+  environment_slug: node-js
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: eulicesl/OMI.me-Apps
+  http_port: 8000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: jarvis
+  run_command: cd Jarvis && npm start
+  source_dir: /
+  envs:
+  - key: NODE_ENV
+    scope: RUN_TIME
+    value: production
+  - key: PORT
+    scope: RUN_TIME
+    value: "8000"
+  - key: SUPABASE_URL
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SUPABASE_URL
+  - key: SUPABASE_ANON_KEY
+    scope: RUN_TIME
+    type: SECRET
+    value: YOUR_SUPABASE_ANON_KEY
