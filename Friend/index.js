@@ -322,7 +322,7 @@ const validateSaveInput = (req, res, next) => {
 };
 
 app.post("/deleteuser", validateUID, async (req, res, next) => {
-  const uid = (req.body && req.body.uid) || req.query.uid;
+  const uid = req.body.uid;
   try {
     await supabase
       .from('frienddb')
