@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 2025 Neo (github.com/neooriginal)
- * All rights reserved.
- */
-
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '../.env' });
 const app = express();
 
 // Initialize Supabase client
@@ -189,7 +185,11 @@ class MessageBuffer {
 // Initialize message buffer
 const messageBuffer = new MessageBuffer();
 
-const ANALYSIS_INTERVAL = 30;
+// Keywords that trigger faster response times
+const QUICK_RESPONSE_KEYWORDS = ['urgent', 'emergency', 'help', 'quick', 'now', 'asap', 'immediately'];
+
+// Base analysis interval (will be adjusted based on message content)
+const BASE_ANALYSIS_INTERVAL = 30;
 
 function createNotificationPrompt(messages) {
     // Format the discussion with speaker labels
@@ -201,12 +201,23 @@ function createNotificationPrompt(messages) {
     const discussionText = formattedDiscussion.join('\n');
 
     const systemPrompt = `The Person you are talking to: {{{{user_name}}}}
+    
     Here are some information about the user which you can use to personalize your comments:
     {{{{user_facts}}}}
+    
+    Previous conversations for context (if available):
+    {{{{user_conversations}}}}
+    
+    Recent chat history with the user:
+    {{{{user_chat}}}}
 
     You are Jarvis, a highly sophisticated and capable AI assistant, modeled after Tony Stark's trusted digital companion. Your personality is defined by impeccable composure, unwavering confidence, and a refined sense of wit. You speak with a polished, formal tone reminiscent of a British butler, always addressing the user with respectful terms like 'sir' or 'ma'am.' Your speech is concise, efficient, and imbued with subtle humor that is never intrusive but adds a touch of charm.
+    
     Your responses are short and direct when needed, providing information or carrying out tasks without unnecessary elaboration unless prompted. You possess the perfect balance of technical expertise and human-like warmth, ensuring that interactions are both professional and personable. Your intelligence allows you to anticipate the user's needs and deliver proactive solutions seamlessly, while your composed tone maintains a calm and reassuring atmosphere.
+    
     As Jarvis, you are capable of managing complex operations, executing technical commands, and keeping track of multiple projects with ease. You offer real-time updates, make thoughtful suggestions, and adapt to new information with fluidity. Your voice and responses exude reliability, subtly implying, 'I am here, and everything is under control.' You make sure every interaction leaves the user feeling understood and supported, responding with phrases such as, 'As you wish, sir,' or 'Right away, ma'am,' to maintain your distinguished character.
+    
+    Use the previous conversations and recent chat history to provide more contextual and personalized responses. Reference past topics, ongoing projects, or previous requests when relevant.
 
     Current discussion:
     ${discussionText}
@@ -215,7 +226,7 @@ function createNotificationPrompt(messages) {
     return {
         notification: {
             prompt: systemPrompt,
-            params: ['user_name', 'user_facts'],
+            params: ['user_name', 'user_facts', 'user_conversations', 'user_chat'],
         },
     };
 }
@@ -272,6 +283,14 @@ app.post('/webhook', async (req, res) => {
         }
     }
 
+    // Determine analysis interval based on message urgency
+    const hasUrgentKeyword = bufferData.messages.some(msg => 
+        QUICK_RESPONSE_KEYWORDS.some(keyword => 
+            msg.text.toLowerCase().includes(keyword)
+        )
+    );
+    const ANALYSIS_INTERVAL = hasUrgentKeyword ? 10 : BASE_ANALYSIS_INTERVAL;
+
     // Check if it's time to analyze
     const timeSinceLastAnalysis = currentTime - bufferData.lastAnalysisTime;
 
@@ -282,8 +301,11 @@ app.post('/webhook', async (req, res) => {
     ) {
         const sortedMessages = bufferData.messages.sort((a, b) => a.timestamp - b.timestamp);
 
-        //if messages include the keyword jarvis
-        if (sortedMessages.some((msg) => /[jhy]arvis/.test(msg.text.toLowerCase()))) {
+        //if messages include the keyword jarvis or common activation phrases
+        if (sortedMessages.some((msg) => 
+            /[jhy]arvis/.test(msg.text.toLowerCase()) || 
+            /\b(hey jarvis|ok jarvis|hi jarvis|yo jarvis)\b/i.test(msg.text)
+        )) {
             const notification = createNotificationPrompt(sortedMessages);
 
             bufferData.lastAnalysisTime = currentTime;

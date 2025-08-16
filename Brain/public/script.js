@@ -749,6 +749,52 @@ function animate() {
     composer.render();
 }
 
+// Export loadMemoryGraph function for use in other pages
+async function loadMemoryGraph() {
+    try {
+        const response = await apiCall('/api/memory-graph');
+        if (response && response.ok) {
+            const data = await response.json();
+            if (data) {
+                updateVisualization(data);
+                return data;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading memory graph:', error);
+    }
+    return null;
+}
+
+// Make functions globally available for other scripts
+window.initScene = initScene;
+window.loadMemoryGraph = loadMemoryGraph;
+
+// Auto-expanding textarea functionality
+function setupAutoExpandingTextarea() {
+    const chatInput = document.getElementById('chat-input');
+    if (!chatInput) return;
+    
+    // Auto-expand on input
+    chatInput.addEventListener('input', function() {
+        // Reset height to auto to get the correct scrollHeight
+        this.style.height = 'auto';
+        
+        // Set height based on content, with min and max limits
+        const newHeight = Math.min(Math.max(this.scrollHeight, 45), 120);
+        this.style.height = newHeight + 'px';
+    });
+    
+    // Reset height after sending message
+    chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            setTimeout(() => {
+                this.style.height = '45px';
+            }, 100);
+        }
+    });
+}
+
 // Initialize everything when the document is loaded
 document.addEventListener('DOMContentLoaded', async () => {
     // Check authentication with server
@@ -765,6 +811,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initScene();
     animate();
+    
+    // Initialize auto-expanding textarea
+    setupAutoExpandingTextarea();
 
     // Initialize upload functionality
     const processTextBtn = document.getElementById('process-text');
@@ -1040,12 +1089,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newMenuOverlay = menuOverlay.cloneNode(true);
         menuOverlay.parentNode.replaceChild(newMenuOverlay, menuOverlay);
 
-        // Add new event listeners
+        // Add new event listeners with better feedback
         newMobileToggle.addEventListener('click', () => {
             console.log('Mobile toggle clicked');
-            uiContainer.classList.toggle('active');
+            const isActive = uiContainer.classList.toggle('active');
             newMenuOverlay.classList.toggle('active');
             newMobileToggle.classList.toggle('active');
+            
+            // Update aria attributes for accessibility
+            newMobileToggle.setAttribute('aria-expanded', isActive);
+            newMobileToggle.setAttribute('aria-label', isActive ? 'Close menu' : 'Open menu');
         });
 
         newMenuOverlay.addEventListener('click', () => {

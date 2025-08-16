@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "WebFetch(domain:jarvis-app-k4xoe.ondigitalocean.app)"
+    ],
+    "deny": []
+  }
+}
