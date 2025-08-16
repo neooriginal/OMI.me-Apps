@@ -185,7 +185,11 @@ class MessageBuffer {
 // Initialize message buffer
 const messageBuffer = new MessageBuffer();
 
-const ANALYSIS_INTERVAL = 30;
+// Keywords that trigger faster response times
+const QUICK_RESPONSE_KEYWORDS = ['urgent', 'emergency', 'help', 'quick', 'now', 'asap', 'immediately'];
+
+// Base analysis interval (will be adjusted based on message content)
+const BASE_ANALYSIS_INTERVAL = 30;
 
 function createNotificationPrompt(messages) {
     // Format the discussion with speaker labels
@@ -279,6 +283,14 @@ app.post('/webhook', async (req, res) => {
         }
     }
 
+    // Determine analysis interval based on message urgency
+    const hasUrgentKeyword = bufferData.messages.some(msg => 
+        QUICK_RESPONSE_KEYWORDS.some(keyword => 
+            msg.text.toLowerCase().includes(keyword)
+        )
+    );
+    const ANALYSIS_INTERVAL = hasUrgentKeyword ? 10 : BASE_ANALYSIS_INTERVAL;
+
     // Check if it's time to analyze
     const timeSinceLastAnalysis = currentTime - bufferData.lastAnalysisTime;
 
@@ -289,8 +301,11 @@ app.post('/webhook', async (req, res) => {
     ) {
         const sortedMessages = bufferData.messages.sort((a, b) => a.timestamp - b.timestamp);
 
-        //if messages include the keyword jarvis
-        if (sortedMessages.some((msg) => /[jhy]arvis/.test(msg.text.toLowerCase()))) {
+        //if messages include the keyword jarvis or common activation phrases
+        if (sortedMessages.some((msg) => 
+            /[jhy]arvis/.test(msg.text.toLowerCase()) || 
+            /\b(hey jarvis|ok jarvis|hi jarvis|yo jarvis)\b/i.test(msg.text)
+        )) {
             const notification = createNotificationPrompt(sortedMessages);
 
             bufferData.lastAnalysisTime = currentTime;
