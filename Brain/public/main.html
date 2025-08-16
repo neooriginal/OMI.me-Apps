@@ -128,15 +128,7 @@
         <!-- The brain visualization will render in this container -->
     </div>
     
-    <!-- Credits -->
-    <div class="credits">
-        <a href="https://github.com/neooriginal/OMI.me-Apps" target="_blank" rel="noopener" title="Creator - Not responsible for hosting">
-            Built by @neooriginal
-        </a>
-        <div class="credits-disclaimer">
-            Creator only - hosting independent
-        </div>
-    </div>
+    <!-- Credits removed -->
 
     <!-- Delete Confirmation Modal -->
     <div id="delete-modal" class="modal-overlay" style="display: none;">
@@ -563,6 +555,21 @@
     </script>
     <script src="script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="brain-visualizations.js"></script>
+    <script>
+        // Initialize advanced visualizations when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if we're on a page with network container
+            if (document.getElementById('network-container')) {
+                console.log('Brain Advanced Visualizations loaded');
+                
+                // Add view switch buttons if not in tab view
+                if (!document.querySelector('.tab-content')) {
+                    window.brainViz?.addViewControls();
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>

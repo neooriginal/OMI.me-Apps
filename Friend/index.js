@@ -8,12 +8,32 @@ const app = express();
 const { createClient } = require('@supabase/supabase-js');
 const bodyParser = require("body-parser");
 const axios = require("axios");
+const { OpenAI } = require("openai");
+const path = require('path');
+const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const { body, validationResult, query } = require('express-validator');
 
 const dotenv = require("dotenv");
+// Load env from local .env, then fallback to repo root .env if missing
 dotenv.config();
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.OPENAI_API_KEY) {
+  const rootEnvPath = path.resolve(__dirname, '..', '.env');
+  if (fs.existsSync(rootEnvPath)) {
+    dotenv.config({ path: rootEnvPath });
+  }
+}
+
+// Initialize OpenAI with OpenRouter (prefer OPENROUTER_API_KEY if present)
+const openai = new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
+    baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+        "HTTP-Referer": "https://omi-friend.fly.dev",
+        "X-Title": "OMI Friend App"
+    }
+});
 
 // Rate limiting
 const generalLimiter = rateLimit({
@@ -75,11 +95,15 @@ app.use(express.static('public'));
 let cooldown = [];
 let cooldownTimeCache = [];
 
-// Supabase table initialization
+// Supabase table initialization (only when env is configured)
 (async () => {
+  const hasSupabaseEnv = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  if (!hasSupabaseEnv) {
+    console.log('Supabase env not found. Skipping auto table setup.');
+    return;
+  }
   try {
     console.log('Setting up Friend app table...');
-    
     const { error } = await supabase.rpc('exec_sql', {
       sql_query: `
         CREATE TABLE IF NOT EXISTS frienddb (
@@ -298,7 +322,7 @@ const validateSaveInput = (req, res, next) => {
 };
 
 app.post("/deleteuser", validateUID, async (req, res, next) => {
-  let uid = req.query.uid;
+  const uid = (req.body && req.body.uid) || req.query.uid;
   try {
     await supabase
       .from('frienddb')
@@ -324,7 +348,9 @@ app.post("/save", apiLimiter, validateUID, validateSaveInput, [
   try {
     const uid = sanitizeInput(req.body.uid);
     const responsepercentage = parseInt(req.body.responsepercentage) || 10;
-    const customInstruction = sanitizeInput(req.body.customInstruction || "");
+    const customInstruction = sanitizeInput(
+      (req.body.customInstruction ?? req.body.custominstruction ?? "")
+    );
     const personality = sanitizeInput(req.body.personality);
     const cooldown = parseInt(req.body.cooldown) || 5;
 
@@ -377,6 +403,7 @@ app.post("/get", validateUID, async (req, res, next) => {
       const defaultData = {
         responsepercentage: 10,
         customInstruction: "",
+        custominstruction: "",
         personality: "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik",
         cooldown: 5
       };
@@ -386,6 +413,7 @@ app.post("/get", validateUID, async (req, res, next) => {
       const data = {
         responsepercentage: parseInt(rows.responsepercentage) || 10,
         customInstruction: rows.customInstruction || "",
+        custominstruction: rows.customInstruction || "",
         personality: rows.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik",
         cooldown: parseInt(rows.cooldown) || 5
       };
@@ -478,22 +506,13 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
     `;
 
   const body = {
-    model: "openai/gpt-3.5-turbo",
+    model: "openai/gpt-4o-mini",
     messages: [{ role: "user", content: prePrompt }],
   };
 
-  const response = await axios.post(
-    "https://openrouter.ai/api/v1/chat/completions",
-    body,
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    },
-  );
+  const response = await openai.chat.completions.create(body);
 
-  let respond = response.data.choices[0].message.content;
+  let respond = response.choices[0].message.content;
 
   if (respond.startsWith("true")) {
     respond = "true";
@@ -577,21 +596,12 @@ async function rateConversations(uid) {
   `;
 
   try {
-    const response = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        model: "openai/gpt-3.5-turbo",
-        messages: [{ role: "user", content: ratingPrompt }],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    const response = await openai.chat.completions.create({
+      model: "openai/gpt-4o-mini",
+      messages: [{ role: "user", content: ratingPrompt }],
+    });
 
-    const newRating = parseInt(response.data.choices[0].message.content.trim());
+    const newRating = parseInt(response.choices[0].message.content.trim());
     
     if (newRating >= 1 && newRating <= 100) {
       await supabase
@@ -841,18 +851,20 @@ app.get("/goals", apiLimiter, [
       return res.json({ goals: [] });
     }
     
-    const goalsString = result?.goals;
+    const goalsValue = result?.goals;
     let goals = [];
-    
-    if (goalsString && typeof goalsString === 'string' && goalsString.trim() !== '') {
+    if (Array.isArray(goalsValue)) {
+      goals = goalsValue;
+    } else if (typeof goalsValue === 'string') {
       try {
-        goals = JSON.parse(goalsString);
-      } catch (parseError) {
-        console.warn('Failed to parse goals JSON, using empty array:', parseError);
+        goals = goalsValue.trim() ? JSON.parse(goalsValue) : [];
+      } catch (_) {
         goals = [];
       }
+    } else if (goalsValue && typeof goalsValue === 'object') {
+      // If stored as object map, convert to array values
+      goals = Object.values(goalsValue);
     }
-    
     res.json({ goals });
   } catch (err) {
     console.error("Error getting goals:", err);
@@ -884,7 +896,20 @@ app.post("/goals", apiLimiter, [
         .eq('uid', sanitizedUid)
         .single();
 
-      const goals = JSON.parse(result?.goals || "[]");
+      let goals;
+      if (Array.isArray(result?.goals)) {
+        goals = result.goals;
+      } else if (typeof result?.goals === 'string') {
+        try {
+          goals = JSON.parse(result.goals || "[]");
+        } catch (_) {
+          goals = [];
+        }
+      } else if (result?.goals && typeof result.goals === 'object') {
+        goals = Object.values(result.goals);
+      } else {
+        goals = [];
+      }
       const newGoal = {
         id: Date.now().toString(),
         type: sanitizedType,
@@ -897,7 +922,7 @@ app.post("/goals", apiLimiter, [
       
       await supabase
         .from('frienddb')
-        .update({ goals: JSON.stringify(goals) })
+        .update({ goals })
         .eq('uid', sanitizedUid);
 
     res.json({ success: true, goal: newGoal });
@@ -916,12 +941,25 @@ app.delete("/goals/:goalId", async (req, res) => {
       .eq('uid', uid)
       .single();
 
-    const goals = JSON.parse(result?.goals || "[]");
+    let goals;
+    if (Array.isArray(result?.goals)) {
+      goals = result.goals;
+    } else if (typeof result?.goals === 'string') {
+      try {
+        goals = JSON.parse(result.goals || "[]");
+      } catch (_) {
+        goals = [];
+      }
+    } else if (result?.goals && typeof result.goals === 'object') {
+      goals = Object.values(result.goals);
+    } else {
+      goals = [];
+    }
     const updatedGoals = goals.filter((goal) => goal.id !== req.params.goalId);
     
     await supabase
       .from('frienddb')
-      .update({ goals: JSON.stringify(updatedGoals) })
+      .update({ goals: updatedGoals })
       .eq('uid', uid);
 
     res.json({ success: true });
@@ -933,6 +971,72 @@ app.delete("/goals/:goalId", async (req, res) => {
 
 app.get("/webhook/setup-status", (req, res) => {
   return res.status(200).json({ is_setup_completed: true });
+});
+
+// Basic health endpoint for monitoring
+app.get('/health', (_req, res) => {
+  const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  return res.status(200).json({ status: 'ok', supabaseConfigured });
+});
+
+// Simple chat test endpoint used by dashboard persona chat
+app.post('/chat-test', [
+  body('message').isString().isLength({ min: 1, max: 1000 }),
+  body('personality').optional().isString().isLength({ max: 500 }),
+  body('prompt').optional().isString().isLength({ max: 2000 }),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'Invalid input data' });
+  }
+
+  const { message, personality = '', prompt = '' } = req.body;
+  const systemPrompt = `You are a friendly conversational companion.
+Personality traits: ${personality}
+Custom instruction: ${prompt}
+Respond concisely and helpfully in 1-3 sentences.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message },
+      ],
+    });
+    const reply = completion.choices?.[0]?.message?.content?.trim() || 'Okay.';
+    return res.json({ response: reply });
+  } catch (err) {
+    console.error('chat-test error:', err);
+    return res.status(500).json({ response: 'Sorry, something went wrong.' });
+  }
+});
+
+// Daily image generation cooldown per uid (in-memory for local use)
+const imageCooldowns = new Map();
+
+app.get('/generate-image', [
+  query('uid').isString().isLength({ min: 1, max: 50 }).trim(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'Invalid UID' });
+  }
+  const uid = sanitizeInput(req.query.uid);
+
+  const now = Date.now();
+  const last = imageCooldowns.get(uid) || 0;
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (now - last < dayMs) {
+    const nextAvailable = new Date(last + dayMs).toISOString();
+    return res.status(429).json({ nextAvailable });
+  }
+
+  // For local/dev, return a placeholder image URL seeded by uid+date
+  const seed = encodeURIComponent(uid + '-' + new Date().toDateString());
+  const imageUrl = `https://picsum.photos/seed/${seed}/1024/640`;
+  imageCooldowns.set(uid, now);
+  return res.json({ imageUrl });
 });
 
 app.get("/insights", apiLimiter, [
@@ -952,7 +1056,12 @@ app.get("/insights", apiLimiter, [
       .eq('uid', uid)
       .single();
     
-    const logs = JSON.parse(result?.logs || "[]");
+    const logsValue = result?.logs;
+    const logs = Array.isArray(logsValue)
+      ? logsValue
+      : (typeof logsValue === 'string'
+          ? (logsValue.trim() ? JSON.parse(logsValue) : [])
+          : []);
     
     const last24Hours = logs.filter(log => {
       const logTime = new Date(log.timestamp * 1000);
@@ -994,21 +1103,12 @@ async function analyzeSentiment(logs) {
 
     const prompt = `Analyze the sentiment of this text and respond with just one word: positive, negative, or neutral.\n\nText: ${recentMessages}`;
 
-    const response = await axios.post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        model: "openai/gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    const response = await openai.chat.completions.create({
+      model: "openai/gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+    });
 
-    const sentiment = response.data.choices[0].message.content.trim().toLowerCase();
+    const sentiment = response.choices[0].message.content.trim().toLowerCase();
     
     return {
       overall: ['positive', 'negative', 'neutral'].includes(sentiment) ? sentiment : 'neutral',
@@ -1066,10 +1166,12 @@ function calculateTopWords(logs) {
     }, {});
 }
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Friend app listening at http://localhost:${PORT}`);
-});
+// Start the server only when executed directly (not when imported)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Friend app listening at http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;
