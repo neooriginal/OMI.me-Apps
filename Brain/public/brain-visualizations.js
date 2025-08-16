@@ -86,12 +86,26 @@ class BrainVisualizationManager {
             }
         `;
         
+        // Note: Inline Web Worker with blob URL may be blocked by strict CSP policies
+        // Consider using a separate worker file for better security compliance
         const blob = new Blob([workerCode], { type: 'application/javascript' });
-        this.worker = new Worker(URL.createObjectURL(blob));
         
-        this.worker.addEventListener('message', (e) => {
-            this.handleWorkerMessage(e.data);
-        });
+        try {
+            this.worker = new Worker(URL.createObjectURL(blob));
+            
+            this.worker.addEventListener('message', (e) => {
+                this.handleWorkerMessage(e.data);
+            });
+            
+            this.worker.addEventListener('error', (e) => {
+                console.error('Web Worker error:', e);
+                this.worker = null;
+            });
+        } catch (err) {
+            console.error('Failed to create Web Worker:', err);
+            console.warn('Falling back to main thread processing');
+            this.worker = null;
+        }
     }
 
     handleWorkerMessage(message) {
@@ -793,13 +807,28 @@ class BrainVisualizationManager {
                 credentials: 'include'
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                this.memoryData = data.nodes || [];
-                return this.memoryData;
+            if (!response.ok) {
+                console.error(`HTTP error! status: ${response.status}`);
+                if (response.status === 401) {
+                    console.error('Authentication required');
+                } else if (response.status === 404) {
+                    console.error('Memory graph endpoint not found');
+                } else if (response.status >= 500) {
+                    console.error('Server error occurred');
+                }
+                return [];
             }
+            
+            const data = await response.json();
+            this.memoryData = data.nodes || [];
+            return this.memoryData;
         } catch (error) {
             console.error('Error loading memory data:', error);
+            if (error.name === 'AbortError') {
+                console.error('Request was aborted');
+            } else if (error.name === 'TypeError') {
+                console.error('Network error or CORS issue');
+            }
         }
         
         return [];

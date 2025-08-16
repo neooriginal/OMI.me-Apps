@@ -1,72 +1,32 @@
-/* CSS Custom Properties for Better Theming */
-:root {
-    --color-primary: #00ffaa;
-    --color-primary-rgb: 0, 255, 170;
-    --color-secondary: #ff1493;
-    --color-background: #0a0a0f;
-    --color-surface: rgba(15, 15, 25, 0.95);
-    --color-text: #ffffff;
-    --color-text-muted: rgba(255, 255, 255, 0.7);
-    
-    /* Responsive spacing using rem */
-    --spacing-xs: 0.25rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
-    
-    /* Typography scale */
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.875rem;
-    --font-size-base: 1rem;
-    --font-size-lg: 1.125rem;
-    --font-size-xl: 1.5rem;
-    
-    /* Transitions */
-    --transition-fast: 150ms ease;
-    --transition-base: 250ms ease;
-    --transition-slow: 350ms ease;
-}
-
-/* Base reset with improved defaults */
-*, *::before, *::after {
-    box-sizing: border-box;
-}
-
 body {
     margin: 0;
     padding: 0;
-    background: linear-gradient(135deg, var(--color-background) 0%, #1a1a2e 50%, var(--color-background) 100%);
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
     background-attachment: fixed;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    color: var(--color-text);
+    font-family: 'Inter', sans-serif;
+    color: #fff;
     line-height: 1.6;
     -webkit-tap-highlight-color: transparent;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    min-height: 100vh;
-    /* Fixed: Removed overflow-x to properly fix layout */
+    height: 100%;
+    overflow-x: hidden;
     letter-spacing: 0.02em;
 }
 
 html {
-    font-size: 16px; /* Base for rem calculations */
     height: 100%;
     overflow: hidden;
 }
 
 /* Main Layout Containers */
 #network-container {
-    /* Fixed: Proper layout without calc() */
+    width: calc(100vw - 340px);
+    height: 100vh;
     position: absolute;
     top: 0;
-    left: 320px;
     right: 0;
-    bottom: 0;
     background: linear-gradient(to bottom right, #0a0a0f, #1a1a2f);
     padding: 20px;
     box-sizing: border-box;
-    transition: left var(--transition-base);
 }
 
 /* Glowing container style for brain visualization */
@@ -125,7 +85,7 @@ html {
 
 @media (min-width: 769px) {
     #network-container {
-        transition: left 0.3s ease, padding 0.3s ease;
+        transition: width 0.3s ease, padding 0.3s ease;
     }
 }
 
@@ -241,18 +201,12 @@ html {
     overflow-y: auto;
     opacity: 0;
     transition: opacity 0.3s ease;
-    /* Fixed: Width constraints */
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .tab-content.active {
     display: flex;
     flex-direction: column;
     opacity: 1;
-    /* Fixed: Ensure no horizontal overflow */
-    max-width: 100%;
-    overflow-x: hidden;
 }
 
 /* Chat Messages */
@@ -266,16 +220,6 @@ html {
     gap: 16px;
     padding-bottom: 10px;
     -webkit-overflow-scrolling: touch;
-    /* Enhanced scrolling UX */
-    scroll-behavior: smooth;
-    scroll-snap-type: y proximity;
-    /* Visual scroll indicators */
-    background: 
-        linear-gradient(to bottom, rgba(15, 15, 25, 0.98) 0%, transparent 8px) top,
-        linear-gradient(to top, rgba(15, 15, 25, 0.98) 0%, transparent 8px) bottom;
-    background-size: 100% 16px;
-    background-repeat: no-repeat;
-    background-attachment: local, local;
 }
 
 .chat-message {
@@ -358,30 +302,12 @@ html {
     font-family: 'Inter', sans-serif;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(5px);
-    /* In flex containers, min-width: 0 allows the input to shrink and prevents overflow caused by the default min-width: auto */
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 #chat-input {
-    /* Fixed: Auto-expanding with min/max height */
-    min-height: 45px;
-    max-height: 120px;
-    height: auto;
+    height: 45px;
     resize: none;
     line-height: 1.5;
-    /* Better overflow handling */
-    overflow-y: auto;
-    /* Hide scrollbar for cleaner look */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    /* Smooth height transitions */
-    transition: height 0.2s ease, border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-#chat-input::-webkit-scrollbar {
-    display: none;
 }
 
 #chat-input:focus,
@@ -454,12 +380,8 @@ html {
     position: sticky;
     top: 0;
     background: rgba(15, 15, 25, 0.98);
-    padding: 16px;
+    padding: 16px 0;
     z-index: 5;
-    /* Fixed: Proper width handling to prevent overflow */
-    width: 100%;
-    box-sizing: border-box;
-    max-width: 100%;
 }
 
 #search-results {
@@ -468,12 +390,6 @@ html {
     flex-direction: column;
     gap: 12px;
     padding-bottom: 20px;
-    /* Fixed: Width constraints to prevent overflow */
-    width: 100%;
-    box-sizing: border-box;
-    scroll-behavior: smooth;
-    padding-left: 16px;
-    padding-right: 16px;
 }
 
 .search-result {
@@ -485,11 +401,6 @@ html {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-size: 14px;
     line-height: 1.6;
-    /* Fixed: Prevent overflow */
-    width: 100%;
-    box-sizing: border-box;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
 }
 
 .search-result:hover {
@@ -560,13 +471,13 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 255, 170, 0.3);
+    background: rgba(0, 255, 170, 0.2);
     border-radius: 4px;
     transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 255, 170, 0.5);
+    background: rgba(0, 255, 170, 0.4);
 }
 
 /* Profile section improvements */
@@ -1440,18 +1351,10 @@ body.modal-open {
 
     /* Adjust network container for mobile */
     #network-container {
-        /* Fixed: Full viewport on mobile */
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
+        width: 100vw;
         padding: 10px;
-    }
-    
-    /* When UI is active, hide network container on mobile */
-    #ui-container.active ~ #network-container {
-        display: none;
+        left: 0;
+        right: auto;
     }
 
     /* Make glowing container responsive */
@@ -1475,11 +1378,6 @@ body.modal-open {
 
     #mobile-toggle.active {
         right: 20px;
-        /* Enhanced visual feedback */
-        background: rgba(255, 20, 147, 0.2);
-        border-color: rgba(255, 20, 147, 0.3);
-        color: #ff1493;
-        transform: rotate(90deg);
     }
 
     /* Header and tabs */
@@ -1541,10 +1439,9 @@ body.modal-open {
 
     /* Chat area */
     #chat-messages {
-        /* Fixed: Better spacing calculation for mobile */
-        margin-bottom: 0;
-        padding-bottom: 100px; /* Space for fixed input */
-        height: calc(100vh - 200px); /* More precise height */
+        margin-bottom: 80px;
+        /* Space for input area */
+        padding-bottom: 20px;
     }
 
     #chat-input-area {
@@ -1562,29 +1459,14 @@ body.modal-open {
     #search-box {
         position: sticky;
         top: 0;
-        padding: 12px;
+        padding: 8px;
         background: rgba(15, 15, 25, 0.98);
         z-index: 1001;
-        /* Fixed: Ensure full width on mobile */
-        margin: 0;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     #search-results {
-        padding: 12px;
-        padding-bottom: 100px; /* Space for mobile navigation */
-        /* Fixed: Ensure no horizontal overflow */
-        width: 100%;
-        box-sizing: border-box;
-        overflow-x: hidden;
-    }
-    
-    #search-input {
-        font-size: 16px; /* Prevents zoom on iOS */
-        padding: 12px 16px;
-        min-width: 0;
-        width: 100%;
+        padding: 16px;
+        padding-bottom: 80px;
     }
 
     /* Improve touch targets */
@@ -1715,156 +1597,5 @@ body.modal-open {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
-    }
-}
-
-/* ===== Additional UI Enhancements ===== */
-
-/* Loading Skeleton */
-.skeleton {
-    background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0.05) 25%,
-        rgba(255, 255, 255, 0.1) 50%,
-        rgba(255, 255, 255, 0.05) 75%
-    );
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s ease-in-out infinite;
-    border-radius: var(--spacing-sm);
-}
-
-@keyframes skeleton-loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-
-/* Toast Notifications */
-.toast {
-    position: fixed;
-    bottom: var(--spacing-xl);
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--color-surface);
-    color: var(--color-text);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--spacing-md);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    z-index: 9999;
-    animation: slide-up var(--transition-base);
-    max-width: 90%;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(var(--color-primary-rgb), 0.2);
-}
-
-.toast.success {
-    border-color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb), 0.1);
-}
-
-.toast.error {
-    border-color: #ff4444;
-    background: rgba(255, 68, 68, 0.1);
-}
-
-@keyframes slide-up {
-    from {
-        transform: translateX(-50%) translateY(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-    }
-}
-
-/* Improved Focus States for Accessibility */
-:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-}
-
-:focus:not(:focus-visible) {
-    outline: none;
-}
-
-/* Better Touch Targets for Mobile */
-@media (pointer: coarse) {
-    button, .button, .tab-btn, .action-button {
-        min-height: 2.75rem; /* 44px minimum touch target */
-        min-width: 2.75rem;
-    }
-}
-
-/* Smooth Scroll for Better UX */
-@supports (scroll-behavior: smooth) {
-    html {
-        scroll-behavior: smooth;
-    }
-}
-
-/* Dark Mode Support */
-@media (prefers-color-scheme: light) {
-    :root {
-        --color-background: #f5f5f5;
-        --color-text: #1a1a1a;
-        --color-surface: rgba(255, 255, 255, 0.95);
-        --color-text-muted: rgba(0, 0, 0, 0.6);
-    }
-    
-    body {
-        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 50%, #f5f5f5 100%);
-    }
-}
-
-/* Ultra-Wide Screen Support */
-@media (min-width: 1920px) {
-    :root {
-        font-size: 18px;
-    }
-    
-    #ui-container {
-        width: 400px;
-    }
-    
-    #network-container {
-        left: 420px;
-    }
-}
-
-/* Small Mobile Optimization */
-@media (max-width: 375px) {
-    :root {
-        font-size: 14px;
-    }
-    
-    .tab-btn {
-        font-size: var(--font-size-xs);
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-    
-    #chat-input, #search-input {
-        font-size: var(--font-size-sm);
-    }
-}
-
-/* Print Styles */
-@media print {
-    body {
-        background: white;
-        color: black;
-    }
-    
-    #ui-container, #mobile-toggle, .no-print {
-        display: none !important;
-    }
-    
-    #network-container {
-        position: relative;
-        left: 0;
-        right: 0;
-        margin: 0;
-        padding: 0;
-        border: none;
-        box-shadow: none;
     }
 }

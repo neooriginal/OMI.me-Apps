@@ -322,7 +322,14 @@ const validateSaveInput = (req, res, next) => {
 };
 
 app.post("/deleteuser", validateUID, async (req, res, next) => {
-  const uid = (req.body && req.body.uid) || req.query.uid;
+  let uid = (req.body && req.body.uid) || req.query.uid;
+  
+  // Validate and sanitize uid: must be a non-empty alphanumeric string with underscores/hyphens
+  if (typeof uid !== 'string' || !uid.trim() || !/^[a-zA-Z0-9_-]+$/.test(uid.trim())) {
+    return res.status(400).json({ error: "Invalid uid parameter" });
+  }
+  uid = uid.trim();
+  
   try {
     await supabase
       .from('frienddb')
@@ -1032,9 +1039,11 @@ app.get('/generate-image', [
     return res.status(429).json({ nextAvailable });
   }
 
-  // For local/dev, return a placeholder image URL seeded by uid+date
-  const seed = encodeURIComponent(uid + '-' + new Date().toDateString());
-  const imageUrl = `https://picsum.photos/seed/${seed}/1024/640`;
+  // For local/dev, return a local placeholder image
+  // Note: Using external service (picsum.photos) could be a security/dependency risk
+  // const seed = encodeURIComponent(uid + '-' + new Date().toDateString());
+  // const imageUrl = `https://picsum.photos/seed/${seed}/1024/640`;
+  const imageUrl = '/public/placeholder.png';
   imageCooldowns.set(uid, now);
   return res.json({ imageUrl });
 });
