@@ -398,6 +398,12 @@ class BrainVisualizationManager {
         // Clear existing Three.js scene if present
         const container = document.getElementById('network-container');
         
+        // Remove any existing heatmap canvas to prevent memory leaks
+        const existingCanvas = container.querySelector('.heatmap-canvas');
+        if (existingCanvas) {
+            existingCanvas.remove();
+        }
+        
         // Create canvas for heatmap
         const canvas = document.createElement('canvas');
         canvas.className = 'heatmap-canvas';
@@ -717,7 +723,10 @@ class BrainVisualizationManager {
         // Re-initialize the original scene
         if (typeof initScene === 'function') {
             initScene();
-            loadMemoryGraph();
+            // Check if loadMemoryGraph exists before calling
+            if (typeof loadMemoryGraph === 'function') {
+                loadMemoryGraph();
+            }
         }
     }
     
@@ -820,6 +829,8 @@ class VirtualScroller {
         this.items = [];
         this.scrollTop = 0;
         this.visibleItems = [];
+        this.renderedItems = new Map(); // Track rendered items for reuse
+        this.boundHandleScroll = null; // Store bound handler for removal
     }
 
     init(container, items) {
@@ -831,10 +842,13 @@ class VirtualScroller {
         wrapper.style.height = `${this.items.length * this.itemHeight}px`;
         wrapper.style.position = 'relative';
         
-        // Add scroll listener
-        container.addEventListener('scroll', () => {
+        // Create and store bound handler for proper removal
+        this.boundHandleScroll = () => {
             this.handleScroll();
-        });
+        };
+        
+        // Add scroll listener
+        container.addEventListener('scroll', this.boundHandleScroll);
         
         this.render();
     }
@@ -851,15 +865,29 @@ class VirtualScroller {
             this.items.length
         );
         
-        // Clear existing items
-        this.container.innerHTML = '';
-        
-        // Render only visible items
+        // Track which items should be visible
+        const visibleIndices = new Set();
         for (let i = startIndex; i < endIndex; i++) {
-            const item = this.createItemElement(this.items[i], i);
-            item.style.position = 'absolute';
-            item.style.top = `${i * this.itemHeight}px`;
-            this.container.appendChild(item);
+            visibleIndices.add(i);
+        }
+        
+        // Remove items that are no longer visible
+        for (const [index, element] of this.renderedItems.entries()) {
+            if (!visibleIndices.has(index)) {
+                element.remove();
+                this.renderedItems.delete(index);
+            }
+        }
+        
+        // Add or update visible items (reuse existing elements)
+        for (let i = startIndex; i < endIndex; i++) {
+            if (!this.renderedItems.has(i)) {
+                const item = this.createItemElement(this.items[i], i);
+                item.style.position = 'absolute';
+                item.style.top = `${i * this.itemHeight}px`;
+                this.container.appendChild(item);
+                this.renderedItems.set(i, item);
+            }
         }
     }
 
@@ -876,8 +904,12 @@ class VirtualScroller {
     }
 
     destroy() {
-        if (this.container) {
-            this.container.removeEventListener('scroll', this.handleScroll);
+        if (this.container && this.boundHandleScroll) {
+            this.container.removeEventListener('scroll', this.boundHandleScroll);
+        }
+        // Clear rendered items map to prevent memory leaks
+        if (this.renderedItems) {
+            this.renderedItems.clear();
         }
     }
 }
