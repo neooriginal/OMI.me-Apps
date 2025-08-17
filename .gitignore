@@ -6,3 +6,5 @@ Friend/.env
 Jarvis/.env
 .env
 .DS_Store
+.do
+.claude
