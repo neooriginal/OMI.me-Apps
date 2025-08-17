@@ -25,10 +25,8 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.
   }
 }
 
-// Initialize OpenAI with OpenRouter (prefer OPENROUTER_API_KEY if present)
 const openai = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1"
+    apiKey: process.env.OPENAI_API_KEY
 });
 
 // Rate limiting
