@@ -1098,7 +1098,7 @@ async function analyzeSentiment(logs) {
     const prompt = `Analyze the sentiment of this text and respond with just one word: positive, negative, or neutral.\n\nText: ${recentMessages}`;
 
     const response = await openai.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
     });
 
