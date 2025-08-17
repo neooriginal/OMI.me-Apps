@@ -500,7 +500,7 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
     `;
 
   const body = {
-    model: "openai/gpt-4o-mini",
+    model: "gpt-4o-mini",
     messages: [{ role: "user", content: prePrompt }],
   };
 
