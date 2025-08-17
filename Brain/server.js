@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 Neo (github.com/neooriginal)
+ * All rights reserved.
+ */
+
 require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const OpenAI = require('openai');
