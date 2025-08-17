@@ -3,7 +3,7 @@
  * All rights reserved.
  */
 
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config();
 const express = require('express');
 const OpenAI = require('openai');
 const bodyParser = require('body-parser');
@@ -92,12 +92,12 @@ async function createTables() {
 createTables().catch(console.error);
 
 const app = express();
+app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
 const port = process.env.PORT || 3000;
 
-// Initialize OpenAI
+
 const openai = new OpenAI({
-    baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY
+    apiKey: process.env.OPENAI_API_KEY
 });
 
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -248,7 +248,7 @@ Memory Status: ${memoryGraph.nodes.length > 0 ?
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o",
+            model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
@@ -333,7 +333,7 @@ async function processTextWithGPT(text) {
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o",
+            model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
@@ -358,23 +358,14 @@ async function processTextWithGPT(text) {
 
 // Authentication middleware
 function requireAuth(req, res, next) {
-    console.log('RequireAuth - Session ID:', req.sessionID);
-    console.log('RequireAuth - Session data:', req.session);
-    console.log('RequireAuth - Cookies:', req.headers.cookie);
-    console.log('RequireAuth - User-Agent:', req.headers['user-agent']);
-
-    // Check if session exists and has userId
     if (!req.session) {
-        console.log('RequireAuth - No session found');
         return res.status(401).json({ error: 'No session - please login again' });
     }
 
     if (!req.session.userId) {
-        console.log('RequireAuth - Session exists but no userId');
         return res.status(401).json({ error: 'Session invalid - please login again' });
     }
 
-    console.log('RequireAuth - Authentication successful for UID:', req.session.userId);
     req.uid = req.session.userId;
     next();
 }
@@ -824,7 +815,7 @@ Provide a concise but insightful description that:
 Keep the description natural and engaging, focusing on the most meaningful connections.`;
 
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o",
+            model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",

@@ -111,10 +111,8 @@
                             <label>UID</label>
                             <div id="profile-uid"></div>
                         </div>
-                        <!-- Discord status display removed -->
                     </div>
                     <div class="profile-actions">
-                        <!-- Discord link button removed -->
                         <button id="delete-data" onclick="showDeleteConfirmation()" class="action-button danger">
                             <span class="icon">🗑️</span>
                             Delete All My Data
@@ -126,16 +124,6 @@
     </div>
     <div id="network-container" class="glowing-container">
         <!-- The brain visualization will render in this container -->
-    </div>
-    
-    <!-- Credits -->
-    <div class="credits">
-        <a href="https://github.com/neooriginal/OMI.me-Apps" target="_blank" rel="noopener" title="Creator - Not responsible for hosting">
-            Built by @neooriginal
-        </a>
-        <div class="credits-disclaimer">
-            Creator only - hosting independent
-        </div>
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -163,7 +151,6 @@
         </div>
     </div>
 
-    <!-- This script block is for webview detection and compatibility adjustments -->
     <script>
         // Webview detection
         function isWebView() {
@@ -563,6 +550,21 @@
     </script>
     <script src="script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="brain-visualizations.js"></script>
+    <script>
+        // Initialize advanced visualizations when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if we're on a page with network container
+            if (document.getElementById('network-container')) {
+                console.log('Brain Advanced Visualizations loaded');
+                
+                // Add view switch buttons if not in tab view
+                if (!document.querySelector('.tab-content')) {
+                    window.brainViz?.addViewControls();
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>

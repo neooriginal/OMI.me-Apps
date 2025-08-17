@@ -228,7 +228,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // Global function to handle missing images - must be defined first
-        window.handleMissingImage = function(img) {
+        window.handleMissingImage = function (img) {
             img.onerror = null; // Prevent infinite loop
             img.src = `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(img.alt || 'default')}`; // Use DiceBear API for placeholder
         };
@@ -242,11 +242,11 @@
                 }
 
                 setCookie('uid', uid);
-                
+
                 // Only try to set UID elements if they exist
                 const uidElement = document.getElementById('uid-display');
                 const actualUid = document.getElementById('actual-uid');
-                
+
                 if (uidElement && actualUid) {
                     actualUid.textContent = uid;
                     uidElement.addEventListener('click', () => {
@@ -495,8 +495,8 @@
                 values = [0];
             } else if (sentimentData.overall) {
                 // Single sentiment object like {overall: 'neutral', confidence: 0.5}
-                const sentimentValue = sentimentData.overall === 'positive' ? 1 : 
-                                     sentimentData.overall === 'negative' ? -1 : 0;
+                const sentimentValue = sentimentData.overall === 'positive' ? 1 :
+                    sentimentData.overall === 'negative' ? -1 : 0;
                 labels = ['Current Sentiment'];
                 values = [sentimentValue];
             } else {
@@ -733,7 +733,7 @@
                 if (!message) return;
 
                 const selectedCard = document.querySelector('.preset-card[data-preset="' + selectedName.textContent + '"]');
-                
+
                 if (!selectedCard) {
                     console.error('No selected character card found');
                     return;
@@ -1043,9 +1043,8 @@
 
     <footer class="credits-footer">
         <div class="credits-content">
-            <p>originally created by <a href="https://github.com/neooriginal" target="_blank" rel="noopener noreferrer">@neooriginal</a></p>
-            <p class="disclaimer">creator has no ongoing maintenance responsibility or liability</p>
-            <p><a href="https://github.com/neooriginal/OMI.me-Apps" target="_blank" rel="noopener noreferrer">view source repository</a></p>
+            <p><a href="https://github.com/neooriginal/OMI.me-Apps" target="_blank" rel="noopener noreferrer">view
+                    source repository</a></p>
         </div>
     </footer>
 </body>

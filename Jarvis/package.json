@@ -1,23 +1,22 @@
 {
-  "name": "omi-jarvis",
-  "version": "1.0.0",
+  "name": "jarvis-omi-assistant",
+  "version": "2.0.0",
+  "description": "J.A.R.V.I.S. - AI Assistant for OMI with environment variable support",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
   },
   "keywords": [
+    "omi",
+    "jarvis",
     "ai",
-    "assistant",
-    "jarvis"
+    "assistant"
   ],
   "author": "Neo (github.com/neooriginal)",
   "license": "MIT",
-  "description": "Jarvis AI Assistant",
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
-    "express": "^4.21.1",
-    "fs": "^0.0.1-security",
-    "winston": "^3.17.0"
+    "dotenv": "^17.2.1",
+    "express": "^4.21.1"
   }
 }
