@@ -95,14 +95,9 @@ const app = express();
 app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
 const port = process.env.PORT || 3000;
 
-// Initialize OpenAI with OpenRouter
+
 const openai = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: {
-        "HTTP-Referer": "https://brain-latest.onrender.com",
-        "X-Title": "OMI Brain App"
-    }
+    apiKey: process.env.OPENAI_API_KEY
 });
 
 app.use(bodyParser.json({ limit: '10mb' }));
