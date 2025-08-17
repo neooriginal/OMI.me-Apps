@@ -992,7 +992,7 @@ Respond concisely and helpfully in 1-3 sentences.`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'openai/gpt-4o-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message },
