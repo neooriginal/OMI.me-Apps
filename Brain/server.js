@@ -3,7 +3,7 @@
  * All rights reserved.
  */
 
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config();
 const express = require('express');
 const OpenAI = require('openai');
 const bodyParser = require('body-parser');
@@ -358,23 +358,14 @@ async function processTextWithGPT(text) {
 
 // Authentication middleware
 function requireAuth(req, res, next) {
-    console.log('RequireAuth - Session ID:', req.sessionID);
-    console.log('RequireAuth - Session data:', req.session);
-    console.log('RequireAuth - Cookies:', req.headers.cookie);
-    console.log('RequireAuth - User-Agent:', req.headers['user-agent']);
-
-    // Check if session exists and has userId
     if (!req.session) {
-        console.log('RequireAuth - No session found');
         return res.status(401).json({ error: 'No session - please login again' });
     }
 
     if (!req.session.userId) {
-        console.log('RequireAuth - Session exists but no userId');
         return res.status(401).json({ error: 'Session invalid - please login again' });
     }
 
-    console.log('RequireAuth - Authentication successful for UID:', req.session.userId);
     req.uid = req.session.userId;
     next();
 }
