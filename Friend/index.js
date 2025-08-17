@@ -16,17 +16,10 @@ const helmet = require('helmet');
 const { body, validationResult, query } = require('express-validator');
 
 const dotenv = require("dotenv");
-// Load env from local .env, then fallback to repo root .env if missing
 dotenv.config();
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.OPENAI_API_KEY) {
-  const rootEnvPath = path.resolve(__dirname, '..', '.env');
-  if (fs.existsSync(rootEnvPath)) {
-    dotenv.config({ path: rootEnvPath });
-  }
-}
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 // Rate limiting
@@ -54,8 +47,8 @@ app.use(generalLimiter);
 
 // Initialize Supabase client
 const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
 );
 
 let previousDiscussions = [];
@@ -84,7 +77,10 @@ const stopWords = new Set([
 // Middleware to parse JSON bodies with size limits
 app.use(express.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('public'));
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
+app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 let cooldown = [];
 let cooldownTimeCache = [];
@@ -209,7 +205,7 @@ app.get("/deleteData", async (req, res) => {
       .from('frienddb')
       .delete()
       .eq('uid', uid);
-    
+
     res.redirect("/?deleted=true");
   } catch (err) {
     console.error("Failed to delete data:", err.message);
@@ -243,12 +239,12 @@ const validateUID = (req, res, next) => {
   if (!uid) {
     return res.status(400).json({ error: "Missing UID" });
   }
-  
+
   // Basic UID validation
   if (typeof uid !== 'string' || uid.length > 50 || uid.trim() !== uid) {
     return res.status(400).json({ error: "Invalid UID format" });
   }
-  
+
   next();
 };
 
@@ -256,8 +252,8 @@ const validateUID = (req, res, next) => {
 const sanitizeInput = (input) => {
   if (typeof input !== 'string') return input;
   return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-              .replace(/<[^>]*>?/gm, '')
-              .trim();
+    .replace(/<[^>]*>?/gm, '')
+    .trim();
 };
 
 // Error handling middleware
@@ -269,19 +265,19 @@ const errorHandler = (err, req, res, next) => {
 app.post("/dashboardData", validateUID, async (req, res, next) => {
   try {
     const uid = req.body.uid;
-    
+
     const { data: userData } = await supabase
       .from('frienddb')
       .select('listenedTo, rating')
       .eq('uid', uid)
       .single();
-    
+
     if (!userData) {
       // Create user if doesn't exist
       await supabase
         .from('frienddb')
         .upsert([{ uid }]);
-      
+
       res.json({
         listenedto: 0,
         rating: 100
@@ -300,18 +296,29 @@ app.post("/dashboardData", validateUID, async (req, res, next) => {
 // Add error handling middleware at the end
 app.use(errorHandler);
 
+// 404 handler for unmatched routes and static files
+app.use((req, res, next) => {
+  // If the request is for a static asset (CSS, JS, images), return 404
+  if (req.path.startsWith('/css/') || req.path.startsWith('/js/') || req.path.startsWith('/images/')) {
+    return res.status(404).send('File not found');
+  }
+
+  // For other routes, continue to next middleware
+  next();
+});
+
 // Validation middleware for save endpoint
 const validateSaveInput = (req, res, next) => {
   const { responsepercentage, cooldown } = req.body;
-  
+
   if (responsepercentage !== undefined && (isNaN(responsepercentage) || responsepercentage < 0 || responsepercentage > 100)) {
     return res.status(400).json({ error: "Response percentage must be between 0 and 100" });
   }
-  
+
   if (cooldown !== undefined && (isNaN(cooldown) || cooldown < 1 || cooldown > 60)) {
     return res.status(400).json({ error: "Cooldown must be between 1 and 60 minutes" });
   }
-  
+
   next();
 };
 
@@ -322,7 +329,7 @@ app.post("/deleteuser", validateUID, async (req, res, next) => {
       .from('frienddb')
       .delete()
       .eq('uid', uid);
-    
+
     res.json({ success: true, message: "User data deleted successfully" });
   } catch (err) {
     next(err);
@@ -371,9 +378,9 @@ app.post("/save", apiLimiter, validateUID, validateSaveInput, [
     await supabase
       .from('frienddb')
       .upsert([updateData]);
-    
+
     cooldownTimeCache[uid] = cooldown;
-    
+
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -388,12 +395,12 @@ app.post("/get", validateUID, async (req, res, next) => {
       .select('responsepercentage, customInstruction, personality, cooldown')
       .eq('uid', uid)
       .single();
-    
+
     if (!rows) {
       await supabase
         .from('frienddb')
         .upsert([{ uid }]);
-      
+
       const defaultData = {
         responsepercentage: 10,
         customInstruction: "",
@@ -434,12 +441,12 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
       .select('customInstruction, personality, goals, listenedTo')
       .eq('uid', uid)
       .single();
-    
+
     if (result) {
       customInstruction = result.customInstruction || "";
       personality = result.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
       goals = result.goals || "[]";
-      
+
       // Update listenedTo counter
       const currentlyListenedTo = parseInt(result.listenedTo) || 0;
       await supabase
@@ -554,14 +561,14 @@ async function rateConversations(uid) {
   ratingCooldown[uid] = Date.now();
   lastRating[uid] = previousDiscusstionsFull[uid].length;
   let rating = undefined;
-  
+
   try {
     const { data: result } = await supabase
       .from('frienddb')
       .select('rating')
       .eq('uid', uid)
       .single();
-    
+
     rating = result?.rating || 100;
   } catch (err) {
     console.error("Error getting rating:", err);
@@ -596,7 +603,7 @@ async function rateConversations(uid) {
     });
 
     const newRating = parseInt(response.choices[0].message.content.trim());
-    
+
     if (newRating >= 1 && newRating <= 100) {
       await supabase
         .from('frienddb')
@@ -636,10 +643,10 @@ app.post("/webhook", webhookLimiter, [
   for (const segment of segments) {
     if (!segment.text) continue;
 
-          const text = sanitizeInput(segment.text.trim());
-      if (text && text.length <= 1000) {  // Limit text length
-        const timestamp = segment.start || currentTime;
-        const isUser = segment.is_user || false;
+    const text = sanitizeInput(segment.text.trim());
+    if (text && text.length <= 1000) {  // Limit text length
+      const timestamp = segment.start || currentTime;
+      const isUser = segment.is_user || false;
 
       // Count words after silence
       if (bufferData.silenceDetected) {
@@ -700,14 +707,14 @@ app.post("/webhook", webhookLimiter, [
           timestamp: currentTime,
           messages: sortedMessages,
         };
-        
+
         const updatedLogs = [...existingLogs, newLogEntry];
-        
+
         // Calculate analytics
         const wordCounts = calculateTopWords(updatedLogs);
         const timeDistribution = calculateTimeDistribution(updatedLogs);
         const totalWords = calculateTotalWords(updatedLogs);
-        
+
         await supabase
           .from('frienddb')
           .update({
@@ -730,7 +737,7 @@ app.post("/webhook", webhookLimiter, [
         .select('responsepercentage')
         .eq('uid', sessionId)
         .single();
-      
+
       if (userData) {
         probabilityToRespond = userData.responsepercentage || 10;
       } else {
@@ -777,13 +784,13 @@ app.get("/analytics", apiLimiter, [
       .select('logs, rating, listenedTo, word_counts, time_distribution, total_words')
       .eq('uid', uid)
       .single();
-    
+
     if (!rows) {
       // Create user with default data if doesn't exist
       await supabase
         .from('frienddb')
         .upsert([{ uid }]);
-      
+
       // Return default analytics data
       return res.json({
         rating: 100,
@@ -836,7 +843,7 @@ app.get("/goals", apiLimiter, [
       .select('goals')
       .eq('uid', uid)
       .single();
-    
+
     if (error || !result) {
       // Create user if doesn't exist
       await supabase
@@ -844,7 +851,7 @@ app.get("/goals", apiLimiter, [
         .upsert([{ uid, goals: '[]' }]);
       return res.json({ goals: [] });
     }
-    
+
     const goalsValue = result?.goals;
     let goals = [];
     if (Array.isArray(goalsValue)) {
@@ -882,42 +889,42 @@ app.post("/goals", apiLimiter, [
   const sanitizedUid = sanitizeInput(uid);
   const sanitizedType = sanitizeInput(type);
   const sanitizedTarget = sanitizeInput(target);
-  
-  try {
-          const { data: result } = await supabase
-        .from('frienddb')
-        .select('goals')
-        .eq('uid', sanitizedUid)
-        .single();
 
-      let goals;
-      if (Array.isArray(result?.goals)) {
-        goals = result.goals;
-      } else if (typeof result?.goals === 'string') {
-        try {
-          goals = JSON.parse(result.goals || "[]");
-        } catch (_) {
-          goals = [];
-        }
-      } else if (result?.goals && typeof result.goals === 'object') {
-        goals = Object.values(result.goals);
-      } else {
+  try {
+    const { data: result } = await supabase
+      .from('frienddb')
+      .select('goals')
+      .eq('uid', sanitizedUid)
+      .single();
+
+    let goals;
+    if (Array.isArray(result?.goals)) {
+      goals = result.goals;
+    } else if (typeof result?.goals === 'string') {
+      try {
+        goals = JSON.parse(result.goals || "[]");
+      } catch (_) {
         goals = [];
       }
-      const newGoal = {
-        id: Date.now().toString(),
-        type: sanitizedType,
-        target: sanitizedTarget,
-        progress: 0,
-        createdAt: new Date().toISOString(),
-      };
+    } else if (result?.goals && typeof result.goals === 'object') {
+      goals = Object.values(result.goals);
+    } else {
+      goals = [];
+    }
+    const newGoal = {
+      id: Date.now().toString(),
+      type: sanitizedType,
+      target: sanitizedTarget,
+      progress: 0,
+      createdAt: new Date().toISOString(),
+    };
 
-      goals.push(newGoal);
-      
-      await supabase
-        .from('frienddb')
-        .update({ goals })
-        .eq('uid', sanitizedUid);
+    goals.push(newGoal);
+
+    await supabase
+      .from('frienddb')
+      .update({ goals })
+      .eq('uid', sanitizedUid);
 
     res.json({ success: true, goal: newGoal });
   } catch (err) {
@@ -950,7 +957,7 @@ app.delete("/goals/:goalId", async (req, res) => {
       goals = [];
     }
     const updatedGoals = goals.filter((goal) => goal.id !== req.params.goalId);
-    
+
     await supabase
       .from('frienddb')
       .update({ goals: updatedGoals })
@@ -1049,14 +1056,14 @@ app.get("/insights", apiLimiter, [
       .select('logs')
       .eq('uid', uid)
       .single();
-    
+
     const logsValue = result?.logs;
     const logs = Array.isArray(logsValue)
       ? logsValue
       : (typeof logsValue === 'string'
-          ? (logsValue.trim() ? JSON.parse(logsValue) : [])
-          : []);
-    
+        ? (logsValue.trim() ? JSON.parse(logsValue) : [])
+        : []);
+
     const last24Hours = logs.filter(log => {
       const logTime = new Date(log.timestamp * 1000);
       const now = new Date();
@@ -1064,13 +1071,13 @@ app.get("/insights", apiLimiter, [
     });
 
     let insights = [];
-    
+
     if (last24Hours.length > 0) {
       const totalMessages = last24Hours.reduce((sum, log) => sum + log.messages.length, 0);
-      const userMessages = last24Hours.reduce((sum, log) => 
+      const userMessages = last24Hours.reduce((sum, log) =>
         sum + log.messages.filter(msg => msg.is_user).length, 0
       );
-      
+
       insights.push(`You had ${totalMessages} messages in the last 24 hours`);
       insights.push(`${userMessages} were from you`);
     }
@@ -1103,7 +1110,7 @@ async function analyzeSentiment(logs) {
     });
 
     const sentiment = response.choices[0].message.content.trim().toLowerCase();
-    
+
     return {
       overall: ['positive', 'negative', 'neutral'].includes(sentiment) ? sentiment : 'neutral',
       confidence: 0.8
@@ -1116,7 +1123,7 @@ async function analyzeSentiment(logs) {
 
 function calculateTimeDistribution(logs) {
   const distribution = { morning: 0, afternoon: 0, evening: 0, night: 0 };
-  
+
   logs.forEach(log => {
     const hour = new Date(log.timestamp * 1000).getHours();
     if (hour >= 6 && hour < 12) distribution.morning++;
@@ -1124,19 +1131,19 @@ function calculateTimeDistribution(logs) {
     else if (hour >= 18 && hour < 22) distribution.evening++;
     else distribution.night++;
   });
-  
+
   return distribution;
 }
 
 function calculateTotalWords(logs) {
-  return logs.reduce((total, log) => 
+  return logs.reduce((total, log) =>
     total + log.messages.reduce((sum, msg) => sum + msg.text.split(/\s+/).length, 0), 0
   );
 }
 
 function calculateTopWords(logs) {
   const wordCount = {};
-  
+
   logs.forEach(log => {
     log.messages.forEach(msg => {
       if (msg.is_user) {
@@ -1150,9 +1157,9 @@ function calculateTopWords(logs) {
       }
     });
   });
-  
+
   return Object.entries(wordCount)
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 20)
     .reduce((obj, [word, count]) => {
       obj[word] = count;
