@@ -824,7 +824,7 @@ Provide a concise but insightful description that:
 Keep the description natural and engaging, focusing on the most meaningful connections.`;
 
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-4o-mini",
+            model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
