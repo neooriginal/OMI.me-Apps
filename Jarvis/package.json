@@ -12,7 +12,7 @@
     "ai",
     "assistant"
   ],
-  "author": "",
+  "author": "Neo (github.com/neooriginal)",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
