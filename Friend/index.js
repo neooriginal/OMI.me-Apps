@@ -591,7 +591,7 @@ async function rateConversations(uid) {
 
   try {
     const response = await openai.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: ratingPrompt }],
     });
 
