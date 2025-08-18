@@ -89,8 +89,7 @@ SESSION_SECRET=any_random_string_here
 FRONTEND_URL_BRAIN=http://localhost:3000
 ```
 
-The Brain app generates a private encryption key on first login and displays it for you to save. This key is stored locally and never sent to the server; you'll need to reuse it on other devices to decrypt your data. When you enter this code on a new device, the app verifies it client-side by attempting to decrypt a stored sample.
-
+The Brain app generates a private encryption key on first login and displays it for you to save. This key is stored locally; by default it isn’t sent to the server. When using chat, the client can optionally include the key only for that request so the server can decrypt your saved memory and build richer context. On a new device, the app verifies your code by decrypting a server-provided sample (the server stores only an encrypted sample, not your key).
 ```bash
 # Start everything (pulls pre-built images automatically)
 docker-compose up -d
