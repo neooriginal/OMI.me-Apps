@@ -123,8 +123,8 @@ function initScene() {
     renderer.setClearColor(0x0a0a0f, 1);
     document.getElementById('network-container').appendChild(renderer.domElement);
 
-    // Set up camera for brain-like view
-    camera.position.set(400, 200, 500);
+    // Set up camera for brain-like view with better initial positioning for larger nodes
+    camera.position.set(300, 150, 400);
     camera.lookAt(0, 0, 0);
 
     // Soft ambient light for overall visibility
@@ -146,12 +146,12 @@ function initScene() {
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;  // More responsive damping
     controls.screenSpacePanning = true;
-    controls.minDistance = 200;    // Keep some distance to see structure
-    controls.maxDistance = 1000;   // Limit zoom out to maintain focus
+    controls.minDistance = 30;     // Much closer zoom for detailed node inspection
+    controls.maxDistance = 1500;   // Slightly increased max distance for better overview
     controls.rotateSpeed = 0.6;    // Smoother rotation
-    controls.zoomSpeed = 1.0;      // Standard zoom speed
+    controls.zoomSpeed = 1.2;      // Faster zoom speed for better UX
     controls.autoRotate = false;
-    controls.maxPolarAngle = Math.PI * 0.75; // Prevent viewing from too far below
+    controls.maxPolarAngle = Math.PI * 0.85; // Allow viewing from more angles
 
     // Add event listeners
     window.addEventListener('resize', onWindowResize, false);
@@ -183,28 +183,46 @@ function initPostProcessing() {
 
 // Create node object
 function createNodeObject(node) {
-    const geometry = new THREE.SphereGeometry(2, 32, 32);  // Smaller nodes
+    const geometry = new THREE.SphereGeometry(8, 32, 32);  // Larger nodes for better visibility
     const material = new THREE.MeshPhongMaterial({
         color: getNodeColor(node.type),
         emissive: getNodeColor(node.type),
-        emissiveIntensity: 0.8,  // Brighter glow
+        emissiveIntensity: 0.6,  // Slightly reduced to prevent overwhelming glow
         transparent: true,
-        opacity: 0.7  // More translucent
+        opacity: 0.8  // Less translucent for better visibility
     });
 
     const sphere = new THREE.Mesh(geometry, material);
 
-    // Add neuron pulse effect
+    // Add neuron pulse effect with dynamic scaling
     sphere.userData.pulsePhase = Math.random() * Math.PI * 2;  // Random starting phase
     sphere.userData.pulseSpeed = 0.003 + Math.random() * 0.002;  // Slightly random speed
     sphere.userData.baseScale = 1;
     sphere.userData.animate = () => {
-        const scale = sphere.userData.baseScale + Math.sin(Date.now() * sphere.userData.pulseSpeed + sphere.userData.pulsePhase) * 0.15;
-        sphere.scale.set(scale, scale, scale);
+        // Calculate dynamic scale based on camera distance
+        const distance = camera.position.distanceTo(sphere.position);
+        const minScale = 0.3;  // Minimum scale when very close
+        const maxScale = 2.0;  // Maximum scale when far away
+        const scaleRange = 800; // Distance range for scaling
+        
+        // Dynamic scale factor based on distance
+        let dynamicScale = Math.min(maxScale, Math.max(minScale, distance / scaleRange));
+        
+        // Add pulse effect to the dynamic scale
+        const pulseEffect = Math.sin(Date.now() * sphere.userData.pulseSpeed + sphere.userData.pulsePhase) * 0.08;
+        const finalScale = (sphere.userData.baseScale * dynamicScale) + pulseEffect;
+        
+        sphere.scale.set(finalScale, finalScale, finalScale);
+        
+        // Also scale the label based on distance for readability
+        if (sphere.children[1]) { // Label is typically the second child
+            const labelScale = Math.max(0.5, Math.min(2.0, distance / 300));
+            sphere.children[1].scale.set(labelScale, labelScale, labelScale);
+        }
     };
 
     // Add glow effect
-    const glowGeometry = new THREE.SphereGeometry(3, 32, 32);  // Smaller glow
+    const glowGeometry = new THREE.SphereGeometry(12, 32, 32);  // Proportionally larger glow
     const glowMaterial = new THREE.ShaderMaterial({
         uniforms: {
             color: { value: new THREE.Color(getNodeColor(node.type)) }
@@ -231,13 +249,13 @@ function createNodeObject(node) {
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     sphere.add(glow);
 
-    // Add label
+    // Add label with better positioning for larger nodes
     const label = new SpriteText(node.name);
-    label.textHeight = 8;
+    label.textHeight = 12;  // Larger text for better readability
     label.color = '#ffffff';
-    label.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    label.padding = 2;
-    label.position.y = 10;
+    label.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+    label.padding = 3;
+    label.position.y = 16;  // Further from larger node
     sphere.add(label);
 
     // Store reference to original node data
@@ -356,8 +374,8 @@ function updateNodePositions() {
         .force('radial', d3.forceRadial(
             d => baseRadius + Math.floor(d.index / nodesPerRing) * 40,
             0, 0).strength(0.1))
-        // Prevent node overlap
-        .force('collision', d3.forceCollide().radius(15).strength(0.3))
+        // Prevent node overlap with larger collision radius for bigger nodes
+        .force('collision', d3.forceCollide().radius(25).strength(0.3))
         // Custom force for z-positioning
         .force('custom-z', alpha => {
             nodes.forEach(node => {
@@ -460,9 +478,9 @@ function selectNode(node) {
     selectedNode = node;
 
     if (node) {
-        // Highlight selected node
-        node.material.emissiveIntensity = 2;
-        node.userData.baseScale = 1.5;
+        // Highlight selected node with enhanced visibility
+        node.material.emissiveIntensity = 1.5;  // Slightly reduced to avoid overwhelming
+        node.userData.baseScale = 1.8;  // Larger selection scale
 
         // Find and highlight connected nodes and relationships
         const connectedLines = lineObjects.filter(line =>
@@ -922,7 +940,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (response.ok) {
                     const processed = await response.json();
-                    const plaintext = {
+                    const processedData = {
                         nodes: processed.entities.map(e => ({ id: e.id, type: e.type, name: e.name, connections: e.connections || 0 })),
                         relationships: processed.relationships.map(r => ({ source: r.source, target: r.target, action: r.action }))
                     };
@@ -943,7 +961,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         method: 'POST',
                         body: JSON.stringify(encryptedPayload)
                     });
-                    updateVisualization(plaintext);
+                    
+                    // After processing, reload the complete memory graph to show all nodes
+                    await loadMemoryGraph();
 
                     textUpload.value = '';
                     uploadStatus.innerHTML = `
@@ -952,7 +972,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             Text processed successfully
                         </div>
                         <div class="stats">
-                            Added ${plaintext.nodes.length} nodes and ${plaintext.relationships.length} connections to your memory graph
+                            Added ${processedData.nodes.length} nodes and ${processedData.relationships.length} connections to your memory graph
                         </div>
                     `;
                 }
@@ -1090,9 +1110,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Click handler to focus on node
                     resultDiv.addEventListener('click', () => {
-                        // Smooth camera transition
+                        // Smooth camera transition with optimal distance for larger nodes
                         const nodePos = node.position;
-                        const distance = 150;  // Fixed distance for consistent view
+                        const distance = 100;  // Closer distance for better view of larger nodes
                         const targetPos = new THREE.Vector3(
                             nodePos.x + distance,
                             nodePos.y + distance,
