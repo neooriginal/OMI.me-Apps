@@ -89,6 +89,7 @@ SESSION_SECRET=any_random_string_here
 FRONTEND_URL_BRAIN=http://localhost:3000
 ```
 
+
 ```bash
 # Start everything (pulls pre-built images automatically)
 docker-compose up -d
