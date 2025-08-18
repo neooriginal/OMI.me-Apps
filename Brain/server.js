@@ -11,16 +11,17 @@ const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const crypto = require('crypto');
 const sanitizeHtml = require('sanitize-html');
 const { URL } = require('url');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 // Initialize Supabase client
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_ANON_KEY
 );
+
 
 // Generic error handler to prevent leaking sensitive info
 function handleDatabaseError(error, operation) {
@@ -42,9 +43,19 @@ async function createTables() {
                 CREATE TABLE IF NOT EXISTS brain_users (
                     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
                     uid TEXT UNIQUE NOT NULL,
+                    code_check TEXT,
+                    has_key BOOLEAN DEFAULT false,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
             `
+        });
+
+        await supabase.rpc('exec_sql', {
+            sql_query: `ALTER TABLE brain_users ADD COLUMN IF NOT EXISTS code_check TEXT;`
+        });
+
+        await supabase.rpc('exec_sql', {
+            sql_query: `ALTER TABLE brain_users ADD COLUMN IF NOT EXISTS has_key BOOLEAN DEFAULT false;`
         });
 
         // Create memory_nodes table
@@ -90,6 +101,23 @@ async function createTables() {
 }
 
 createTables().catch(console.error);
+
+function decryptText(payload, keyB64) {
+    try {
+        const [ivB64, dataB64] = payload.split(':');
+        const iv = Buffer.from(ivB64, 'base64');
+        const data = Buffer.from(dataB64, 'base64');
+        const key = Buffer.from(keyB64, 'base64');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        const ciphertext = data.slice(0, -16);
+        const authTag = data.slice(-16);
+        decipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+        return decrypted.toString('utf8');
+    } catch {
+        return null;
+    }
+}
 
 const app = express();
 app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
@@ -187,7 +215,6 @@ async function saveMemoryGraph(uid, newData) {
                 ]);
         }
 
-        // Save new relationships
         for (const rel of newData.relationships) {
             await supabase
                 .from('memory_relationships')
@@ -206,10 +233,10 @@ async function saveMemoryGraph(uid, newData) {
 }
 
 // Process chat with efficient context
-async function processChatWithGPT(uid, message) {
-    const memoryGraph = await getcontextArray(uid);
-    const contextString = `People and Places: ${Array.from(memoryGraph.nodes.values()).map(n => n.name).join(', ')}\n` +
-        `Facts: ${memoryGraph.relationships.map(r => `${r.source} ${r.action} ${r.target}`).join('. ')}`;
+async function processChatWithGPT(message, context) {
+    const idToNode = new Map(context.nodes.map(n => [n.id, n]));
+    const contextString = `People and Places: ${context.nodes.map(n => n.name).join(', ')}\n` +
+        `Facts: ${context.relationships.map(r => `${idToNode.get(r.source)?.name || r.source} ${r.action} ${idToNode.get(r.target)?.name || r.target}`).join('. ')}`;
 
     const systemPrompt = `You are a friendly and engaging AI companion with access to these memories:
 
@@ -270,10 +297,6 @@ Memory Status: ${memoryGraph.nodes.length > 0 ?
     }
 }
 
-async function getcontextArray(uid) {
-    const memoryGraph = await loadMemoryGraph(uid);
-    return memoryGraph;
-}
 
 // Process text with GPT-4 to extract entities and relationships
 async function processTextWithGPT(text) {
@@ -398,11 +421,11 @@ function validateTextInput(req, res, next) {
 function validateNodeData(req, res, next) {
     const { name, type } = req.body;
 
-    if (!name || typeof name !== 'string' || name.length > 200) {
+    if (!name || typeof name !== 'string' || name.length > 1000) {
         return res.status(400).json({ error: 'Invalid node name' });
     }
 
-    if (!type || typeof type !== 'string' || !['person', 'location', 'event', 'concept'].includes(type)) {
+    if (!type || typeof type !== 'string' || type.length > 1000) {
         return res.status(400).json({ error: 'Invalid node type' });
     }
 
@@ -413,30 +436,7 @@ app.get("/overview", (req, res) => {
     res.sendFile(__dirname + '/public/overview.html');
 });
 
-app.get("/", async (req, res) => {
-    const uid = req.query.uid;
-
-    if (uid && typeof uid === 'string' && uid.length >= 3 && uid.length <= 50) {
-        try {
-            const sanitizedUid = uid.replace(/[^a-zA-Z0-9-_]/g, '');
-
-            await supabase
-                .from('brain_users')
-                .upsert([
-                    {
-                        uid: sanitizedUid
-                    }
-                ]);
-
-            req.session.userId = sanitizedUid;
-            req.session.loginTime = new Date().toISOString();
-
-            return res.redirect('/');
-        } catch (error) {
-            console.error('Auto-login error:', error);
-        }
-    }
-
+app.get("/", (req, res) => {
     res.sendFile(__dirname + '/public/main.html');
 });
 
@@ -450,7 +450,6 @@ app.post("/api/auth/login", validateUid, async (req, res) => {
     try {
         const uid = req.uid;
 
-        // Create or update user record
         await supabase
             .from('brain_users')
             .upsert([
@@ -459,11 +458,15 @@ app.post("/api/auth/login", validateUid, async (req, res) => {
                 }
             ]);
 
-        // Set session and ensure it's saved
+        const { data: userRow } = await supabase
+            .from('brain_users')
+            .select('has_key')
+            .eq('uid', uid)
+            .single();
+
         req.session.userId = uid;
         req.session.loginTime = new Date().toISOString();
 
-        // Force session save
         req.session.save((err) => {
             if (err) {
                 console.error('Session save error:', err);
@@ -472,7 +475,8 @@ app.post("/api/auth/login", validateUid, async (req, res) => {
 
             res.json({
                 success: true,
-                uid: uid
+                uid: uid,
+                hasKey: userRow?.has_key || false
             });
         });
     } catch (error) {
@@ -511,6 +515,35 @@ app.get('/api/profile', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Profile error:', error);
         res.status(500).json({ error: 'Error fetching profile' });
+    }
+});
+
+app.get('/api/code-check', requireAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('brain_users')
+            .select('code_check')
+            .eq('uid', req.uid)
+            .single();
+        if (error) {
+            return res.json({ cipher: null });
+        }
+        res.json({ cipher: data.code_check });
+    } catch (err) {
+        res.json({ cipher: null });
+    }
+});
+
+app.post('/api/code-check', requireAuth, async (req, res) => {
+    try {
+        const { cipher } = req.body;
+        await supabase
+            .from('brain_users')
+            .update({ code_check: cipher, has_key: true })
+            .eq('uid', req.uid);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save verification' });
     }
 });
 
@@ -591,14 +624,34 @@ app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
 // Protected API endpoints
 app.post('/api/chat', requireAuth, validateTextInput, async (req, res) => {
     try {
-        const { message } = req.body;
-        const uid = req.uid;
+        const { message, context, key } = req.body;
 
         if (!message || typeof message !== 'string') {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        const response = await processChatWithGPT(uid, message);
+        let finalContext = context;
+
+        if (key) {
+            const memoryGraph = await loadMemoryGraph(req.uid);
+            const nodes = [];
+            for (const node of memoryGraph.nodes.values()) {
+                nodes.push({
+                    id: node.id,
+                    type: decryptText(node.type, key),
+                    name: decryptText(node.name, key),
+                    connections: node.connections
+                });
+            }
+            const relationships = memoryGraph.relationships.map(r => ({
+                source: r.source,
+                target: r.target,
+                action: decryptText(r.action, key)
+            }));
+            finalContext = { nodes, relationships };
+        }
+
+        const response = await processChatWithGPT(message, finalContext || { nodes: [], relationships: [] });
         res.json({ response });
     } catch (error) {
         console.error('Error:', error);
@@ -681,6 +734,17 @@ app.get('/api/memory-graph', requireAuth, async (req, res) => {
     }
 });
 
+app.post('/api/memory-graph', requireAuth, async (req, res) => {
+    try {
+        const uid = req.uid;
+        await saveMemoryGraph(uid, req.body);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error saving memory graph:', error);
+        res.status(500).json({ error: 'Error saving memory graph' });
+    }
+});
+
 app.post('/api/process-text', requireAuth, validateTextInput, async (req, res) => {
     try {
         const { transcript_segments } = req.body;
@@ -702,16 +766,7 @@ app.post('/api/process-text', requireAuth, validateTextInput, async (req, res) =
         }
 
         const processedData = await processTextWithGPT(text);
-        await saveMemoryGraph(uid, processedData);
-
-        // Get updated memory graph
-        const memoryGraph = await loadMemoryGraph(uid);
-        const visualizationData = {
-            nodes: Array.from(memoryGraph.nodes.values()),
-            relationships: memoryGraph.relationships
-        };
-
-        res.json(visualizationData);
+        res.json(processedData);
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error processing text' });
