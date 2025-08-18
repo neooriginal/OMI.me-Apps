@@ -20,8 +20,13 @@ $$;
 CREATE TABLE IF NOT EXISTS brain_users (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     uid TEXT UNIQUE NOT NULL,
+    code_check TEXT,
+    has_key BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE brain_users ADD COLUMN IF NOT EXISTS code_check TEXT;
+ALTER TABLE brain_users ADD COLUMN IF NOT EXISTS has_key BOOLEAN DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS memory_nodes (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

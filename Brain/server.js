@@ -44,6 +44,7 @@ async function createTables() {
                     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
                     uid TEXT UNIQUE NOT NULL,
                     code_check TEXT,
+                    has_key BOOLEAN DEFAULT false,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
             `
@@ -51,6 +52,10 @@ async function createTables() {
 
         await supabase.rpc('exec_sql', {
             sql_query: `ALTER TABLE brain_users ADD COLUMN IF NOT EXISTS code_check TEXT;`
+        });
+
+        await supabase.rpc('exec_sql', {
+            sql_query: `ALTER TABLE brain_users ADD COLUMN IF NOT EXISTS has_key BOOLEAN DEFAULT false;`
         });
 
         // Create memory_nodes table
@@ -453,6 +458,12 @@ app.post("/api/auth/login", validateUid, async (req, res) => {
                 }
             ]);
 
+        const { data: userRow } = await supabase
+            .from('brain_users')
+            .select('has_key')
+            .eq('uid', uid)
+            .single();
+
         req.session.userId = uid;
         req.session.loginTime = new Date().toISOString();
 
@@ -464,7 +475,8 @@ app.post("/api/auth/login", validateUid, async (req, res) => {
 
             res.json({
                 success: true,
-                uid: uid
+                uid: uid,
+                hasKey: userRow?.has_key || false
             });
         });
     } catch (error) {
@@ -527,7 +539,7 @@ app.post('/api/code-check', requireAuth, async (req, res) => {
         const { cipher } = req.body;
         await supabase
             .from('brain_users')
-            .update({ code_check: cipher })
+            .update({ code_check: cipher, has_key: true })
             .eq('uid', req.uid);
         res.json({ success: true });
     } catch (error) {
