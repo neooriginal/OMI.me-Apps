@@ -232,6 +232,143 @@
             font-size: 14px;
             line-height: 1.4;
         }
+
+        /* SweetAlert2 Brain Key Modal Styles */
+        .brain-key-modal {
+            background: rgba(15, 15, 25, 0.98) !important;
+            border: 2px solid rgba(0, 255, 170, 0.3) !important;
+            border-radius: 16px !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .brain-key-modal .swal2-title {
+            color: #00ffaa !important;
+            font-size: 24px !important;
+            font-weight: 600 !important;
+            margin-bottom: 20px !important;
+        }
+
+        .brain-key-content {
+            color: #ffffff !important;
+        }
+
+        .brain-key-content .code-container {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(0, 255, 170, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .brain-key-content .warning-text {
+            background: rgba(255, 193, 7, 0.1) !important;
+            border: 1px solid rgba(255, 193, 7, 0.3) !important;
+            color: #ffc107 !important;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .brain-key-content .warning-text strong {
+            color: #ffc107 !important;
+        }
+
+        .brain-key-modal .swal2-confirm {
+            background: rgba(0, 255, 170, 0.2) !important;
+            border: 1px solid rgba(0, 255, 170, 0.4) !important;
+            color: #00ffaa !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .brain-key-modal .swal2-confirm:hover {
+            background: rgba(0, 255, 170, 0.3) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(0, 255, 170, 0.2) !important;
+        }
+
+        .brain-key-modal .swal2-confirm:focus {
+            box-shadow: 0 0 0 3px rgba(0, 255, 170, 0.3) !important;
+        }
+
+        /* SweetAlert2 Auth Key Input Modal Styles */
+        .brain-auth-modal {
+            background: rgba(15, 15, 25, 0.98) !important;
+            border: 2px solid rgba(0, 255, 170, 0.3) !important;
+            border-radius: 16px !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .brain-auth-modal .swal2-title {
+            color: #00ffaa !important;
+            font-size: 24px !important;
+            font-weight: 600 !important;
+            margin-bottom: 20px !important;
+        }
+
+        .brain-auth-modal .swal2-input {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(0, 255, 170, 0.3) !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+            font-family: 'Courier New', monospace !important;
+            font-size: 14px !important;
+            padding: 12px !important;
+            text-align: center !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .brain-auth-modal .swal2-input:focus {
+            border-color: rgba(0, 255, 170, 0.6) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 0 0 3px rgba(0, 255, 170, 0.15) !important;
+        }
+
+        .brain-auth-modal .swal2-input::placeholder {
+            color: rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .brain-auth-modal .swal2-confirm {
+            background: rgba(0, 255, 170, 0.2) !important;
+            border: 1px solid rgba(0, 255, 170, 0.4) !important;
+            color: #00ffaa !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .brain-auth-modal .swal2-confirm:hover {
+            background: rgba(0, 255, 170, 0.3) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(0, 255, 170, 0.2) !important;
+        }
+
+        .brain-auth-modal .swal2-confirm:focus {
+            box-shadow: 0 0 0 3px rgba(0, 255, 170, 0.3) !important;
+        }
+
+        .brain-auth-modal .swal2-cancel {
+            background: rgba(255, 68, 68, 0.15) !important;
+            border: 1px solid rgba(255, 68, 68, 0.3) !important;
+            color: #ff4444 !important;
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
+            font-weight: 500 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .brain-auth-modal .swal2-cancel:hover {
+            background: rgba(255, 68, 68, 0.25) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2) !important;
+        }
     </style>
 </head>
 
@@ -272,6 +409,49 @@
             }
         }
 
+        // Helper function for styled authentication popup with validation
+        async function showAuthPopup(storedKey = '') {
+            const result = await Swal.fire({
+                title: 'Enter your Brain code',
+                input: 'text',
+                inputPlaceholder: 'Paste code',
+                inputValue: storedKey,
+                allowOutsideClick: false,
+                customClass: {
+                    popup: 'brain-auth-modal'
+                },
+                preConfirm: async (value) => {
+                    if (!value) {
+                        Swal.showValidationMessage('Code is required');
+                        return false;
+                    }
+                    
+                    const key = value.trim();
+                    try {
+                        const res = await fetch('/api/code-check', { credentials: 'include' });
+                        const { cipher } = await res.json();
+                        if (cipher) {
+                            const plain = await decryptText(cipher, key);
+                            if (plain !== 'verify') {
+                                Swal.showValidationMessage('Invalid code');
+                                return false;
+                            }
+                        }
+                        return key;
+                    } catch (error) {
+                        Swal.showValidationMessage('Failed to verify code');
+                        return false;
+                    }
+                }
+            });
+            
+            if (result.isConfirmed && result.value) {
+                return result.value;
+            } else {
+                throw new Error('Code required');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const uid = new URLSearchParams(window.location.search).get('uid');
             if (uid) {
@@ -299,24 +479,31 @@
                 let key;
                 if (data.hasKey) {
                     const stored = localStorage.getItem('brainKey') || (document.cookie.split('; ').find(r => r.startsWith('brainKey=')) || '').split('=')[1];
-                    const result = await Swal.fire({
-                        title: 'Enter your Brain code',
-                        input: 'text',
-                        inputPlaceholder: 'Paste code',
-                        inputValue: stored || '',
-                        allowOutsideClick: false
-                    });
-                    if (!result.value) {
-                        throw new Error('Code required');
-                    }
-                    key = result.value.trim();
-                    const res = await fetch('/api/code-check', { credentials: 'include' });
-                    const { cipher } = await res.json();
-                    if (cipher) {
-                        const plain = await decryptText(cipher, key);
-                        if (plain !== 'verify') {
-                            throw new Error('Invalid code');
+                    // Try to auto-validate stored key first
+                    if (stored) {
+                        try {
+                            const res = await fetch('/api/code-check', { credentials: 'include' });
+                            const { cipher } = await res.json();
+                            if (cipher) {
+                                const plain = await decryptText(cipher, stored);
+                                if (plain === 'verify') {
+                                    // Stored key is valid, use it and skip the popup
+                                    key = stored;
+                                } else {
+                                    // Stored key is invalid, show popup
+                                    key = await showAuthPopup('');
+                                }
+                            } else {
+                                // No cipher to verify against, use stored key
+                                key = stored;
+                            }
+                        } catch (error) {
+                            // If validation fails, show popup
+                            key = await showAuthPopup(stored);
                         }
+                    } else {
+                        // No stored key, show popup
+                        key = await showAuthPopup('');
                     }
                 } else {
                     key = localStorage.getItem('brainKey') || (document.cookie.split('; ').find(r => r.startsWith('brainKey=')) || '').split('=')[1];
