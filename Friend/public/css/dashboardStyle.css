@@ -610,7 +610,7 @@ body {
 
 .message.ai {
     background: var(--text);
-    color: var(--background);
+    color: #ffffff;
     align-self: flex-start;
     border-bottom-left-radius: 4px;
 }
@@ -872,7 +872,7 @@ body {
 
 .message.ai {
     background: var(--surface);
-    color: var(--text);
+    color: #ffffff;
     align-self: flex-start;
     border-bottom-left-radius: 4px;
 }
