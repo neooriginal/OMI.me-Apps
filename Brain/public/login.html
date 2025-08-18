@@ -167,16 +167,70 @@
             font-size: 12px;
         }
         .copy-btn {
-            padding: 12px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
             background: rgba(0, 255, 170, 0.15);
             border: 1px solid rgba(0, 255, 170, 0.3);
             color: #00ffaa;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 80px;
+            justify-content: center;
         }
+        
         .copy-btn:hover {
             background: rgba(0, 255, 170, 0.25);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 255, 170, 0.2);
+        }
+        
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+        
+        .copy-btn.copied {
+            background: rgba(40, 200, 40, 0.15);
+            border-color: rgba(40, 200, 40, 0.3);
+            color: #28c828;
+        }
+        
+        .copy-btn.copied:hover {
+            background: rgba(40, 200, 40, 0.25);
+        }
+        
+        .code-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .code-input {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 170, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: center;
+        }
+        
+        .warning-text {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            color: #ffc107;
+            font-size: 14px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -281,20 +335,68 @@
                         body: JSON.stringify({ cipher })
                     });
                     await Swal.fire({
-                        title: 'Save this code',
+                        title: '🔐 Your Brain Encryption Key',
                         html: `
-                            <div style="display:flex;gap:10px;align-items:center;">
-                                <input id="brainCode" class="swal2-input" value="${key}" readonly>
-                                <button id="copyCode" type="button" class="copy-btn">Copy</button>
+                            <div class="code-container">
+                                <input id="brainCode" class="code-input" value="${key}" readonly>
+                                <button id="copyCode" type="button" class="copy-btn">
+                                    <span id="copyIcon">📋</span>
+                                    <span id="copyText">Copy</span>
+                                </button>
                             </div>
-                            <p style="margin-top:10px;font-size:0.9em;color:#ccc;">Keep this code safe to access your Brain on other devices.</p>
+                            <div class="warning-text">
+                                <strong>⚠️ Important:</strong><br>
+                                • This key encrypts all your brain data<br>
+                                • Save it securely - you cannot recover it if lost<br>
+                                • You'll need this key to access your data on other devices
+                            </div>
                         `,
-                        confirmButtonText: 'Done',
+                        confirmButtonText: '✅ I\'ve Saved My Key',
                         allowOutsideClick: false,
+                        customClass: {
+                            popup: 'brain-key-modal',
+                            htmlContainer: 'brain-key-content'
+                        },
                         didOpen: () => {
-                            document.getElementById('copyCode').addEventListener('click', () => {
-                                navigator.clipboard.writeText(key);
-                                document.getElementById('copyCode').textContent = 'Copied';
+                            const copyBtn = document.getElementById('copyCode');
+                            const copyIcon = document.getElementById('copyIcon');
+                            const copyText = document.getElementById('copyText');
+                            const codeInput = document.getElementById('brainCode');
+
+                            // Auto-select the code for easy copying
+                            codeInput.focus();
+                            codeInput.select();
+
+                            copyBtn.addEventListener('click', async () => {
+                                try {
+                                    // Try modern clipboard API first
+                                    if (navigator.clipboard && window.isSecureContext) {
+                                        await navigator.clipboard.writeText(key);
+                                    } else {
+                                        // Fallback for older browsers or non-HTTPS
+                                        codeInput.select();
+                                        document.execCommand('copy');
+                                    }
+                                    
+                                    // Visual feedback
+                                    copyBtn.classList.add('copied');
+                                    copyIcon.textContent = '✅';
+                                    copyText.textContent = 'Copied!';
+                                    
+                                    // Reset after 2 seconds
+                                    setTimeout(() => {
+                                        copyBtn.classList.remove('copied');
+                                        copyIcon.textContent = '📋';
+                                        copyText.textContent = 'Copy';
+                                    }, 2000);
+                                    
+                                } catch (err) {
+                                    console.error('Copy failed:', err);
+                                    // Show manual copy instruction
+                                    copyIcon.textContent = '⚠️';
+                                    copyText.textContent = 'Select & Copy';
+                                    codeInput.select();
+                                }
                             });
                         }
                     });

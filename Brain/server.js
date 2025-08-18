@@ -269,8 +269,8 @@ When responding:
    - Suggest possibilities and connections
    - Show curiosity about what you're discussing
 
-Memory Status: ${memoryGraph.nodes.length > 0 ?
-            `I've got quite a collection here - ${memoryGraph.nodes.length} memories all connected in interesting ways!` :
+Memory Status: ${context.nodes.length > 0 ?
+            `I've got quite a collection here - ${context.nodes.length} memories all connected in interesting ways!` :
             "I don't have any memories stored yet, but I'm excited to learn!"}`;
 
     try {
