@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png" href="logo.jpg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         .login-container {
             position: fixed;
@@ -165,6 +166,18 @@
             color: rgba(255, 255, 255, 0.3);
             font-size: 12px;
         }
+        .copy-btn {
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0, 255, 170, 0.15);
+            border: 1px solid rgba(0, 255, 170, 0.3);
+            color: #00ffaa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover {
+            background: rgba(0, 255, 170, 0.25);
+        }
     </style>
 </head>
 
@@ -182,67 +195,118 @@
     <div class="version">v1.0.0</div>
 
     <script>
-        // Store origin path when page loads
+        async function encryptText(text, keyB64) {
+            const raw = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+            const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encoded = new TextEncoder().encode(text);
+            const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+            return `${btoa(String.fromCharCode(...iv))}:${btoa(String.fromCharCode(...new Uint8Array(cipher)))}`;
+        }
+
+        async function decryptText(payload, keyB64) {
+            try {
+                const [ivB64, dataB64] = payload.split(':');
+                const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+                const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
+                const raw = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+                const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+                const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+                return new TextDecoder().decode(plain);
+            } catch {
+                return null;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            // Store main path for login redirect
-            console.log('/');
-
-            sessionStorage.setItem('loginOrigin', '/');
-
-            let uid = getParams('uid');
+            const uid = new URLSearchParams(window.location.search).get('uid');
             if (uid) {
                 document.getElementById('uid').value = uid;
             }
         });
 
-        function getParams(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
-        }
-
         async function handleLogin(event) {
             event.preventDefault();
             const uid = document.getElementById('uid').value.trim();
-            const loginForm = document.querySelector('.login-form');
-            const loginBtn = document.querySelector('.login-btn');
 
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     credentials: 'include',
                     body: new URLSearchParams({ uid })
                 });
 
                 const data = await response.json();
-
-                if (data.success) {
-                    localStorage.setItem('uid', uid);
-                    // Login successful, redirect to main app
-                    window.location.href = '/';
-                } else {
+                if (!data.success) {
                     throw new Error(data.error || 'Login failed');
                 }
-            } catch (error) {
-                const errorDiv = document.querySelector('.error-message') || document.createElement('div');
-                errorDiv.className = 'error-message';
-                errorDiv.textContent = error.message;
-                if (!document.querySelector('.error-message')) {
-                    loginForm.appendChild(errorDiv);
-                }
-            }
-        }
 
-        // Check for error parameter in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const error = urlParams.get('error');
-        if (error) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.textContent = decodeURIComponent(error);
-            document.querySelector('.login-form').appendChild(errorDiv);
+                let key;
+                if (data.hasKey) {
+                    const stored = localStorage.getItem('brainKey') || (document.cookie.split('; ').find(r => r.startsWith('brainKey=')) || '').split('=')[1];
+                    const result = await Swal.fire({
+                        title: 'Enter your Brain code',
+                        input: 'text',
+                        inputPlaceholder: 'Paste code',
+                        inputValue: stored || '',
+                        allowOutsideClick: false
+                    });
+                    if (!result.value) {
+                        throw new Error('Code required');
+                    }
+                    key = result.value.trim();
+                    const res = await fetch('/api/code-check', { credentials: 'include' });
+                    const { cipher } = await res.json();
+                    if (cipher) {
+                        const plain = await decryptText(cipher, key);
+                        if (plain !== 'verify') {
+                            throw new Error('Invalid code');
+                        }
+                    }
+                } else {
+                    key = localStorage.getItem('brainKey') || (document.cookie.split('; ').find(r => r.startsWith('brainKey=')) || '').split('=')[1];
+                    if (!key) {
+                        const array = new Uint8Array(32);
+                        crypto.getRandomValues(array);
+                        key = btoa(String.fromCharCode(...array));
+                    }
+                    localStorage.setItem('brainKey', key);
+                    document.cookie = `brainKey=${key}; max-age=315360000; path=/; SameSite=Strict`;
+                    const cipher = await encryptText('verify', key);
+                    await fetch('/api/code-check', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ cipher })
+                    });
+                    await Swal.fire({
+                        title: 'Save this code',
+                        html: `
+                            <div style="display:flex;gap:10px;align-items:center;">
+                                <input id="brainCode" class="swal2-input" value="${key}" readonly>
+                                <button id="copyCode" type="button" class="copy-btn">Copy</button>
+                            </div>
+                            <p style="margin-top:10px;font-size:0.9em;color:#ccc;">Keep this code safe to access your Brain on other devices.</p>
+                        `,
+                        confirmButtonText: 'Done',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            document.getElementById('copyCode').addEventListener('click', () => {
+                                navigator.clipboard.writeText(key);
+                                document.getElementById('copyCode').textContent = 'Copied';
+                            });
+                        }
+                    });
+                }
+
+                document.cookie = `brainKey=${key}; max-age=315360000; path=/; SameSite=Strict`;
+                localStorage.setItem('brainKey', key);
+                localStorage.setItem('uid', uid);
+                window.location.href = '/';
+            } catch (error) {
+                await Swal.fire('Error', error.message, 'error');
+            }
         }
     </script>
     
