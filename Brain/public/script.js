@@ -1,40 +1,64 @@
+// Encryption helpers
+async function getKey() {
+    const keyB64 = localStorage.getItem('brainKey');
+    if (!keyB64) {
+        window.location.href = '/login.html';
+        throw new Error('Missing Brain code');
+    }
+    const raw = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+    return await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function encryptText(text) {
+    const key = await getKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(text);
+    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+    return `${btoa(String.fromCharCode(...iv))}:${btoa(String.fromCharCode(...new Uint8Array(cipher)))}`;
+}
+
+async function decryptText(payload) {
+    try {
+        const [ivB64, dataB64] = payload.split(':');
+        const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+        const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
+        const key = await getKey();
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        return new TextDecoder().decode(plain);
+    } catch (e) {
+        return payload;
+    }
+}
+
 // Authentication functions
 async function checkAuth() {
     try {
-        // First check if we have session-based authentication with the server
+        // Check if we have session-based authentication with the server
         const response = await fetch('/api/profile', {
             credentials: 'include'
         });
 
         if (response.ok) {
             const data = await response.json();
-            // Store uid in localStorage for convenience
             localStorage.setItem('uid', data.uid);
             return data.uid;
-        } else if (response.status === 401) {
-            // No valid session, redirect to login
-            localStorage.removeItem('uid');
-            window.location.href = '/login.html';
-            return null;
-        } else {
-            throw new Error('Server error');
         }
+
+        localStorage.removeItem('uid');
+        window.location.href = '/login.html';
+        return null;
     } catch (error) {
         console.error('Auth check error:', error);
-        // If there's a network error, try localStorage as fallback
-        const uid = localStorage.getItem('uid') || new URLSearchParams(window.location.search).get('uid');
-        if (!uid) {
-            window.location.href = '/login.html';
-            return null;
-        }
-        return uid;
+        window.location.href = '/login.html';
+        return null;
     }
 }
 
 function logout() {
-    // Clear auth data
-    localStorage.removeItem('uid');
-    window.location.href = '/login.html';
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).finally(() => {
+        localStorage.removeItem('uid');
+        window.location.href = '/login.html';
+    });
 }
 
 // API call helper
@@ -243,6 +267,10 @@ function createRelationshipLine(source, target, action) {
 
 // Update visualization with new data
 function updateVisualization(data) {
+    // Store current data for chat context
+    nodes = new Map(data.nodes.map(n => [n.id, n]));
+    relationships = data.relationships.slice();
+
     // Clear existing objects
     nodeObjects.forEach(obj => scene.remove(obj));
     lineObjects.forEach(obj => scene.remove(obj));
@@ -605,20 +633,33 @@ async function updateSelectedNode() {
     }
 
     try {
+        const encryptedName = await encryptText(newName);
+        const encryptedType = await encryptText(newType);
         const response = await apiCall(`/api/node/${selectedNode.userData.id}`, {
             method: 'PUT',
             body: JSON.stringify({
-                uid: localStorage.getItem('uid'),
-                name: newName,
-                type: newType
+                name: encryptedName,
+                type: encryptedType
             })
         });
 
         if (response.ok) {
-            const data = await response.json();
-            updateVisualization(data);
+            const encrypted = await response.json();
+            const decrypted = {
+                nodes: await Promise.all(encrypted.nodes.map(async n => ({
+                    id: n.id,
+                    type: await decryptText(n.type),
+                    name: await decryptText(n.name),
+                    connections: n.connections
+                }))),
+                relationships: await Promise.all(encrypted.relationships.map(async r => ({
+                    source: r.source,
+                    target: r.target,
+                    action: await decryptText(r.action)
+                })))
+            };
+            updateVisualization(decrypted);
             closeEditModal();
-            // Reselect the updated node
             const updatedNode = nodeObjects.get(selectedNode.userData.id);
             if (updatedNode) {
                 selectNode(updatedNode);
@@ -640,8 +681,21 @@ async function deleteSelectedNode() {
         });
 
         if (response.ok) {
-            const data = await response.json();
-            updateVisualization(data);
+            const encrypted = await response.json();
+            const decrypted = {
+                nodes: await Promise.all(encrypted.nodes.map(async n => ({
+                    id: n.id,
+                    type: await decryptText(n.type),
+                    name: await decryptText(n.name),
+                    connections: n.connections
+                }))),
+                relationships: await Promise.all(encrypted.relationships.map(async r => ({
+                    source: r.source,
+                    target: r.target,
+                    action: await decryptText(r.action)
+                })))
+            };
+            updateVisualization(decrypted);
             closeEditModal();
             selectNode(null); // Deselect node
         }
@@ -674,8 +728,7 @@ async function deleteAllData() {
         deleteBtn.innerHTML = '<span class="icon">⏳</span> Deleting...';
 
         const response = await apiCall('/api/delete-all-data', {
-            method: 'POST',
-            body: JSON.stringify({ uid })
+            method: 'POST'
         });
 
         if (response && response.ok) {
@@ -756,8 +809,21 @@ async function loadMemoryGraph() {
         if (response && response.ok) {
             const data = await response.json();
             if (data) {
-                updateVisualization(data);
-                return data;
+                const decrypted = {
+                    nodes: await Promise.all(data.nodes.map(async n => ({
+                        id: n.id,
+                        type: await decryptText(n.type),
+                        name: await decryptText(n.name),
+                        connections: n.connections
+                    }))),
+                    relationships: await Promise.all(data.relationships.map(async r => ({
+                        source: r.source,
+                        target: r.target,
+                        action: await decryptText(r.action)
+                    })))
+                };
+                updateVisualization(decrypted);
+                return decrypted;
             }
         }
     } catch (error) {
@@ -848,10 +914,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 if (response.ok) {
-                    const data = await response.json();
-                    updateVisualization(data);
+                    const processed = await response.json();
+                    const plaintext = {
+                        nodes: processed.entities.map(e => ({ id: e.id, type: e.type, name: e.name, connections: e.connections || 0 })),
+                        relationships: processed.relationships.map(r => ({ source: r.source, target: r.target, action: r.action }))
+                    };
+                    const encryptedPayload = {
+                        entities: await Promise.all(processed.entities.map(async e => ({
+                            id: e.id,
+                            type: await encryptText(e.type),
+                            name: await encryptText(e.name),
+                            connections: e.connections || 0
+                        }))),
+                        relationships: await Promise.all(processed.relationships.map(async r => ({
+                            source: r.source,
+                            target: r.target,
+                            action: await encryptText(r.action)
+                        })))
+                    };
+                    await apiCall('/api/memory-graph', {
+                        method: 'POST',
+                        body: JSON.stringify(encryptedPayload)
+                    });
+                    updateVisualization(plaintext);
 
-                    // Clear input and show success message
                     textUpload.value = '';
                     uploadStatus.innerHTML = `
                         <div class="success">
@@ -859,7 +945,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             Text processed successfully
                         </div>
                         <div class="stats">
-                            Added ${data.nodes.length} nodes and ${data.relationships.length} connections to your memory graph
+                            Added ${plaintext.nodes.length} nodes and ${plaintext.relationships.length} connections to your memory graph
                         </div>
                     `;
                 }
@@ -900,14 +986,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             chatInput.value = '';
 
             try {
+                const context = {
+                    nodes: Array.from(nodes.values()),
+                    relationships
+                };
+                const key = localStorage.getItem('brainKey');
                 const response = await apiCall('/api/chat', {
                     method: 'POST',
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ message, context, key })
                 });
                 if (response) {
                     const data = await response.json();
 
-                    // Add AI response to chat
                     const aiMessageDiv = document.createElement('div');
                     aiMessageDiv.className = 'message ai';
                     aiMessageDiv.textContent = data.response;
@@ -1067,14 +1157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Load initial memory graph
-    apiCall('/api/memory-graph')
-        .then(response => response && response.json())
-        .then(data => {
-            if (data) {
-                updateVisualization(data);
-            }
-        })
-        .catch(console.error);
+    loadMemoryGraph();
 
     // Initialize mobile UI toggle
     const mobileToggle = document.getElementById('mobile-toggle');
