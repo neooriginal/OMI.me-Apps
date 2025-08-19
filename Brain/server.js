@@ -562,6 +562,45 @@ app.post('/api/code-check', requireAuth, async (req, res) => {
     }
 });
 
+// Reset user data endpoint - allows starting fresh with new key
+app.post('/api/reset-data', requireAuth, async (req, res) => {
+    try {
+        const uid = req.uid;
+        
+        // Delete all user's brain nodes
+        await supabase
+            .from('brain_nodes')
+            .delete()
+            .eq('uid', uid);
+        
+        // Delete all user's brain relationships
+        await supabase
+            .from('brain_relationships')
+            .delete()
+            .eq('uid', uid);
+        
+        // Reset user's encryption key status
+        await supabase
+            .from('brain_users')
+            .update({ 
+                code_check: null,
+                has_key: false 
+            })
+            .eq('uid', uid);
+        
+        // Clear session
+        req.session.destroy();
+        
+        res.json({ 
+            success: true, 
+            message: 'All data reset. Please login again to generate a new key.' 
+        });
+    } catch (error) {
+        console.error('Reset data error:', error);
+        res.status(500).json({ error: 'Failed to reset data' });
+    }
+});
+
 app.get("/setup", async (req, res) => {
     res.json({ 'is_setup_completed': true });
 });
