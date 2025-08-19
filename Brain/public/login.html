@@ -571,12 +571,27 @@
                     });
                     
                     if (response.ok) {
-                        // Clear any local storage
-                        localStorage.clear();
-                        // Clear cookies
-                        document.cookie.split(";").forEach(c => {
-                            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-                        });
+                        // Clear client-side state (not HttpOnly session cookies)
+                        function cleanClientState() {
+                            try {
+                                // Clear local and session storage
+                                localStorage.clear();
+                                sessionStorage.clear();
+                                
+                                // Clear non-HttpOnly cookies (session cookie is cleared server-side)
+                                document.cookie.split(';').forEach(raw => {
+                                    const name = raw.split('=')[0].trim();
+                                    if (name) {
+                                        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+                                    }
+                                });
+                            } catch (e) {
+                                console.warn('Client cleanup error:', e);
+                            }
+                        }
+                        
+                        // Clean up client state
+                        cleanClientState();
                         
                         await Swal.fire({
                             title: 'Data Reset Complete',
