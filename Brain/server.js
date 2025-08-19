@@ -567,37 +567,35 @@ app.post('/api/reset-data', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
         
-        // Delete all user's brain nodes
-        await supabase
-            .from('brain_nodes')
-            .delete()
-            .eq('uid', uid);
+        // Use a single stored procedure to reset user data atomically
+        const { error: resetError } = await supabase.rpc('reset_user_data', { uid });
+        if (resetError) {
+            console.error('Reset data error:', resetError);
+            return res.status(500).json({ error: 'Failed to reset data' });
+        }
         
-        // Delete all user's brain relationships
-        await supabase
-            .from('brain_relationships')
-            .delete()
-            .eq('uid', uid);
-        
-        // Reset user's encryption key status
-        await supabase
-            .from('brain_users')
-            .update({ 
-                code_check: null,
-                has_key: false 
-            })
-            .eq('uid', uid);
-        
-        // Clear session
-        req.session.destroy();
-        
-        res.json({ 
-            success: true, 
-            message: 'All data reset. Please login again to generate a new key.' 
+        // Destroy the session with a callback to ensure it's cleared before responding
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destruction error:', err);
+                return res.status(500).json({ error: 'Failed to destroy session' });
+            }
+            // Clear the session cookie with proper options
+            res.clearCookie('connect.sid', {
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production'
+            });
+            
+            return res.json({
+                success: true,
+                message: 'All data reset. Please login again to generate a new key.'
+            });
         });
     } catch (error) {
         console.error('Reset data error:', error);
-        res.status(500).json({ error: 'Failed to reset data' });
+        return res.status(500).json({ error: 'Failed to reset data' });
     }
 });
 
