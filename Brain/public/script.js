@@ -50,7 +50,7 @@ function getDeviceInfo() {
   return 'Unknown';
 
 }
-// Escape HTML secial characters to prevent XSS
+// Escape HTML special characters to prevent XSS
 function escapeHtml(unsafe) {
   return String(unsafe)
     .replace(/&/g, '&amp;')
