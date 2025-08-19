@@ -112,6 +112,38 @@
                             <div id="profile-uid"></div>
                         </div>
                     </div>
+                    
+                    <!-- Encryption Key Management Section -->
+                    <div class="key-management-section" style="margin: 30px 0; padding: 20px; background: rgba(0, 255, 170, 0.05); border: 1px solid rgba(0, 255, 170, 0.2); border-radius: 12px;">
+                        <h3 style="color: #00ffaa; margin-bottom: 15px;">🔐 Encryption Key Management</h3>
+                        <div style="margin-bottom: 15px; padding: 15px; background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 8px;">
+                            <p style="color: #ffc107; margin: 0; font-size: 14px;">
+                                <strong>⚠️ Important:</strong> Your encryption key protects all your data. Store it safely!
+                            </p>
+                        </div>
+                        <div class="key-status" style="margin-bottom: 20px;">
+                            <p style="color: rgba(255, 255, 255, 0.8); font-size: 14px;">
+                                ✅ Key Status: <strong style="color: #00ffaa;">Securely stored on this device</strong>
+                            </p>
+                        </div>
+                        <div class="key-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="exportEncryptionKey()" class="action-button" style="background: rgba(0, 255, 170, 0.15); border: 1px solid rgba(0, 255, 170, 0.3); color: #00ffaa;">
+                                📥 Download Backup
+                            </button>
+                            <button onclick="copyEncryptionKey()" class="action-button" style="background: rgba(0, 170, 255, 0.15); border: 1px solid rgba(0, 170, 255, 0.3); color: #00aaff;">
+                                📋 Copy to Clipboard
+                            </button>
+                            <button onclick="showKeyInstructions()" class="action-button" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #ffffff;">
+                                ℹ️ How to Use
+                            </button>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                            <p style="color: rgba(255, 255, 255, 0.6); font-size: 12px; margin: 0;">
+                                <strong>Best Practices:</strong> Save your key in a password manager or secure location. You'll need it to access your data on other devices.
+                            </p>
+                        </div>
+                    </div>
+                    
                     <div class="profile-actions">
                         <button id="delete-data" onclick="showDeleteConfirmation()" class="action-button danger">
                             <span class="icon">🗑️</span>
