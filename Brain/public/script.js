@@ -60,7 +60,6 @@ function escapeHtml(unsafe) {
     .replace(/'/g, '&#039;');
 }
 
-}
 
 // Helper to safely escape HTML characters
 function escapeHtmlSafe(str) {
