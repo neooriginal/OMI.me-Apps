@@ -12,10 +12,10 @@ BEGIN
     
     -- Order matters if you don't have ON DELETE CASCADE:
     -- Delete relationships first (they reference nodes)
-    DELETE FROM brain_relationships WHERE uid = p_uid;
-    
+    DELETE FROM memory_relationships WHERE uid = p_uid;
+
     -- Then delete nodes
-    DELETE FROM brain_nodes WHERE uid = p_uid;
+    DELETE FROM memory_nodes WHERE uid = p_uid;
     
     -- Finally reset user's encryption key status
     UPDATE brain_users 
