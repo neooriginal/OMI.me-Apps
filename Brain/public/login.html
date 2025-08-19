@@ -381,6 +381,9 @@
             </div>
             <button type="submit" class="login-btn">Login</button>
         </form>
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="#" onclick="showResetOption(); return false;" style="color: rgba(255, 68, 68, 0.8); font-size: 14px; text-decoration: none;">Lost your encryption key? Reset data</a>
+        </div>
         <a href="/privacy.html" class="privacy-link">Privacy Policy</a>
     </div>
     <div class="version">v1.0.0</div>
@@ -459,6 +462,152 @@
             }
         });
 
+        async function showResetOption() {
+            const uid = document.getElementById('uid').value;
+            if (!uid) {
+                await Swal.fire({
+                    title: 'UID Required',
+                    text: 'Please enter your UID first',
+                    icon: 'info',
+                    confirmButtonColor: '#00ffaa',
+                    customClass: {
+                        popup: 'brain-auth-modal'
+                    }
+                });
+                document.getElementById('uid').focus();
+                return;
+            }
+            
+            const result = await Swal.fire({
+                title: '⚠️ Reset All Data?',
+                html: `
+                    <div style="text-align: left; padding: 20px; color: #ffffff;">
+                        <p><strong>This will permanently delete:</strong></p>
+                        <ul style="margin: 10px 0;">
+                            <li>All your memories and connections</li>
+                            <li>Your current encryption key</li>
+                            <li>All encrypted data</li>
+                        </ul>
+                        <p style="margin-top: 20px; color: #ff1493;">
+                            <strong>This action cannot be undone!</strong>
+                        </p>
+                        <p style="margin-top: 10px; color: #00ffaa;">
+                            You'll get a fresh start with a new encryption key.
+                        </p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ff1493',
+                cancelButtonColor: '#00ffaa',
+                confirmButtonText: 'Yes, Reset Everything',
+                cancelButtonText: 'Cancel',
+                customClass: {
+                    popup: 'brain-auth-modal'
+                }
+            });
+            
+            if (result.isConfirmed) {
+                // Second confirmation - more serious tone
+                const finalConfirm = await Swal.fire({
+                    title: '🛑 FINAL CONFIRMATION',
+                    html: `
+                        <div style="text-align: center; padding: 20px; color: #ffffff;">
+                            <p style="font-size: 18px; color: #ff1493; font-weight: bold;">
+                                This action is IRREVERSIBLE
+                            </p>
+                            <p style="margin: 20px 0; font-size: 16px;">
+                                Type <strong style="color: #ff1493;">DELETE</strong> to confirm
+                            </p>
+                            <p style="color: rgba(255, 255, 255, 0.7); font-size: 14px;">
+                                All your memories, connections, and encrypted data will be permanently erased.
+                            </p>
+                        </div>
+                    `,
+                    input: 'text',
+                    inputPlaceholder: 'Type DELETE to confirm',
+                    inputValidator: (value) => {
+                        if (!value || value.toUpperCase() !== 'DELETE') {
+                            return 'Please type DELETE to confirm';
+                        }
+                    },
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ff1493',
+                    cancelButtonColor: '#666',
+                    confirmButtonText: 'Yes, Delete Everything',
+                    cancelButtonText: 'Cancel',
+                    customClass: {
+                        popup: 'brain-auth-modal'
+                    }
+                });
+                
+                if (!finalConfirm.isConfirmed) {
+                    return;
+                }
+                
+                try {
+                    // First login to get session
+                    const loginResponse = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ uid })
+                    });
+                    
+                    if (!loginResponse.ok) {
+                        throw new Error('Failed to authenticate');
+                    }
+                    
+                    // Now reset the data
+                    const response = await fetch('/api/reset-data', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        // Clear any local storage
+                        localStorage.clear();
+                        // Clear cookies
+                        document.cookie.split(";").forEach(c => {
+                            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                        });
+                        
+                        await Swal.fire({
+                            title: 'Data Reset Complete',
+                            text: 'You can now login again to start fresh with a new encryption key.',
+                            icon: 'success',
+                            confirmButtonColor: '#00ffaa',
+                            customClass: {
+                                popup: 'brain-auth-modal'
+                            }
+                        });
+                        
+                        // Reload the page
+                        window.location.reload();
+                    } else {
+                        throw new Error('Reset failed');
+                    }
+                } catch (error) {
+                    console.error('Reset error:', error);
+                    Swal.fire({
+                        title: 'Reset Failed',
+                        text: 'Unable to reset data. Please try again or contact support.',
+                        icon: 'error',
+                        confirmButtonColor: '#ff1493',
+                        customClass: {
+                            popup: 'brain-auth-modal'
+                        }
+                    });
+                }
+            }
+        }
+        
         async function handleLogin(event) {
             event.preventDefault();
             const uid = document.getElementById('uid').value.trim();
