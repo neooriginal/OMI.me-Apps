@@ -49,7 +49,7 @@ function getDeviceInfo() {
   }
   return 'Unknown';
 
-
+}
 // Escape HTML secial characters to prevent XSS
 function escapeHtml(unsafe) {
   return String(unsafe)
