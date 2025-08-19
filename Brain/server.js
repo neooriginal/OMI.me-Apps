@@ -1057,7 +1057,16 @@ app.use((err, req, res, next) => {
     res.status(result.status).sendFile(__dirname + '/public/500.html');
 });
 
-// Start server
-app.listen(port, () => {
+// Health check endpoint for deployment monitoring
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// Start server - bind to all interfaces for deployment
+app.listen(port, '0.0.0.0', () => {
     console.log(`Server running on port ${port}`);
 });
