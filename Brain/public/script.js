@@ -37,6 +37,41 @@ async function decryptText(payload) {
     }
 }
 
+// Utility constants and functions for key management
+const SUPPORT_EMAIL = 'leulices@gmail.com';
+
+function getDeviceInfo() {
+  const ua = navigator.userAgent;
+  const start = ua.indexOf('(');
+  const end = ua.indexOf(')');
+  if (start !== -1 && end !== -1 && end > start) {
+    return ua.substring(start + 1, end);
+  }
+  return 'Unknown';
+
+
+// Escape HTML secial characters to prevent XSS
+function escapeHtml(unsafe) {
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+}
+
+// Helper to safely escape HTML characters
+function escapeHtmlSafe(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Authentication functions
 async function checkAuth() {
     try {
@@ -1241,7 +1276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 ================================
 Generated: ${new Date().toLocaleString()}
 User ID: ${uid}
-Device: ${navigator.userAgent.split('(')[1].split(')')[0]}
+Device: ${getDeviceInfo()}
 
 YOUR ENCRYPTION KEY:
 ${key}
@@ -1268,7 +1303,7 @@ BEST PRACTICES:
 • Consider printing and storing in a safe
 • Delete this file from Downloads after securing it
 
-For support: support@brain-app.com
+For support: ${SUPPORT_EMAIL}
 `;
             
             const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
