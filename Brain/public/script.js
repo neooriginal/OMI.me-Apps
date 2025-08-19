@@ -1219,4 +1219,216 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+    
+    // Enterprise-grade key management functions
+    async function exportEncryptionKey() {
+        try {
+            const key = localStorage.getItem('brainKey');
+            if (!key) {
+                await Swal.fire({
+                    title: 'No Key Found',
+                    text: 'No encryption key found on this device.',
+                    icon: 'warning',
+                    confirmButtonColor: '#00ffaa'
+                });
+                return;
+            }
+            
+            // Create a formatted text file with instructions
+            const timestamp = new Date().toISOString().split('T')[0];
+            const uid = document.getElementById('profile-uid').textContent || 'unknown';
+            const content = `BRAIN ENCRYPTION KEY BACKUP
+================================
+Generated: ${new Date().toLocaleString()}
+User ID: ${uid}
+Device: ${navigator.userAgent.split('(')[1].split(')')[0]}
+
+YOUR ENCRYPTION KEY:
+${key}
+
+IMPORTANT SECURITY INFORMATION:
+-------------------------------
+• This key encrypts all your Brain app data
+• Store this file in a secure location (password manager recommended)
+• Never share this key with anyone
+• You'll need this key to access your data on other devices
+• If you lose this key, your data cannot be recovered
+
+HOW TO USE THIS KEY:
+--------------------
+1. When logging in from a new device, you'll be prompted for this key
+2. Copy the key from this file (the long string above)
+3. Paste it when prompted during login
+4. The key will be securely stored on that device
+
+BEST PRACTICES:
+---------------
+• Store in a password manager (1Password, Bitwarden, etc.)
+• Keep a backup in a secure cloud storage
+• Consider printing and storing in a safe
+• Delete this file from Downloads after securing it
+
+For support: support@brain-app.com
+`;
+            
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `brain-key-backup-${timestamp}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            await Swal.fire({
+                title: 'Key Downloaded Successfully',
+                html: `
+                    <div style="text-align: left;">
+                        <p>Your encryption key has been saved to:</p>
+                        <code style="background: rgba(0,0,0,0.2); padding: 5px; border-radius: 4px;">
+                            brain-key-backup-${timestamp}.txt
+                        </code>
+                        <br><br>
+                        <strong style="color: #ffc107;">⚠️ Next Steps:</strong>
+                        <ol style="margin: 10px 0; padding-left: 20px;">
+                            <li>Store this file in your password manager</li>
+                            <li>Delete it from your Downloads folder</li>
+                            <li>Never share this key with anyone</li>
+                        </ol>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonColor: '#00ffaa'
+            });
+        } catch (error) {
+            console.error('Export error:', error);
+            Swal.fire({
+                title: 'Export Failed',
+                text: 'Unable to export encryption key. Please try copying it instead.',
+                icon: 'error',
+                confirmButtonColor: '#ff1493'
+            });
+        }
+    }
+    
+    async function copyEncryptionKey() {
+        try {
+            const key = localStorage.getItem('brainKey');
+            if (!key) {
+                await Swal.fire({
+                    title: 'No Key Found',
+                    text: 'No encryption key found on this device.',
+                    icon: 'warning',
+                    confirmButtonColor: '#00ffaa'
+                });
+                return;
+            }
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(key);
+            } else {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = key;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            
+            await Swal.fire({
+                title: 'Key Copied!',
+                html: `
+                    <div style="text-align: center;">
+                        <p>Your encryption key has been copied to the clipboard.</p>
+                        <br>
+                        <strong style="color: #ffc107;">⚠️ Security Tips:</strong>
+                        <ul style="text-align: left; margin: 10px auto; max-width: 300px;">
+                            <li>Paste it immediately into your password manager</li>
+                            <li>Don't paste it in unsecured locations</li>
+                            <li>Clear your clipboard after use</li>
+                        </ul>
+                    </div>
+                `,
+                icon: 'success',
+                timer: 5000,
+                timerProgressBar: true,
+                confirmButtonColor: '#00ffaa'
+            });
+        } catch (error) {
+            console.error('Copy error:', error);
+            // Show manual copy dialog
+            const key = localStorage.getItem('brainKey');
+            await Swal.fire({
+                title: 'Manual Copy Required',
+                html: `
+                    <div>
+                        <p>Select and copy your key:</p>
+                        <input type="text" 
+                               value="${key}" 
+                               readonly 
+                               style="width: 100%; padding: 10px; margin: 10px 0; background: rgba(0,0,0,0.2); border: 1px solid rgba(0,255,170,0.3); border-radius: 4px; color: #00ffaa; font-family: monospace; font-size: 12px;"
+                               onclick="this.select()">
+                    </div>
+                `,
+                confirmButtonColor: '#00ffaa'
+            });
+        }
+    }
+    
+    async function showKeyInstructions() {
+        await Swal.fire({
+            title: '🔐 How to Manage Your Encryption Key',
+            html: `
+                <div style="text-align: left; max-height: 400px; overflow-y: auto;">
+                    <h4 style="color: #00ffaa; margin-top: 20px;">What is this key?</h4>
+                    <p>Your encryption key is a unique code that protects all your Brain app data using AES-256 encryption, the same standard used by banks and governments.</p>
+                    
+                    <h4 style="color: #00ffaa; margin-top: 20px;">Why is it important?</h4>
+                    <ul>
+                        <li>It's the only way to decrypt your data</li>
+                        <li>Without it, your data is permanently inaccessible</li>
+                        <li>Not even we can recover it if lost</li>
+                    </ul>
+                    
+                    <h4 style="color: #00ffaa; margin-top: 20px;">How to store it safely:</h4>
+                    <ol>
+                        <li><strong>Password Manager</strong> (Recommended)
+                            <br>Store it in 1Password, Bitwarden, LastPass, etc.</li>
+                        <li><strong>Secure Cloud Storage</strong>
+                            <br>Save in an encrypted folder in your cloud drive</li>
+                        <li><strong>Physical Backup</strong>
+                            <br>Print and store in a safe or safety deposit box</li>
+                    </ol>
+                    
+                    <h4 style="color: #00ffaa; margin-top: 20px;">Using on other devices:</h4>
+                    <ol>
+                        <li>Login with your UID on the new device</li>
+                        <li>When prompted, enter your encryption key</li>
+                        <li>The key will be securely saved on that device</li>
+                    </ol>
+                    
+                    <h4 style="color: #ff1493; margin-top: 20px;">⚠️ Never:</h4>
+                    <ul>
+                        <li>Share your key with anyone</li>
+                        <li>Store it in plain text emails</li>
+                        <li>Save it in unencrypted notes apps</li>
+                        <li>Post it on social media or forums</li>
+                    </ul>
+                </div>
+            `,
+            confirmButtonText: 'Got it!',
+            confirmButtonColor: '#00ffaa',
+            width: '600px'
+        });
+    }
+    
+    // Make functions globally available
+    window.exportEncryptionKey = exportEncryptionKey;
+    window.copyEncryptionKey = copyEncryptionKey;
+    window.showKeyInstructions = showKeyInstructions;
 });
