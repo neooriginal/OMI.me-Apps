@@ -125,7 +125,7 @@ const port = process.env.PORT || 3000;
 
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.trim() : ''
 });
 
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -1066,7 +1066,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Start server - bind to all interfaces for deployment
-app.listen(port, '0.0.0.0', () => {
+// Start server
+app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
