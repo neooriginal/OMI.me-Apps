@@ -71,7 +71,7 @@ html {
 
 /* Glowing container style for brain visualization */
 .glowing-container {
-    border: 2px solid #00ffaa;
+    border: 2px solid var(--color-primary);
     border-radius: 24px;
     box-shadow: 0 0 25px rgba(0, 255, 170, 0.3),
         0 0 40px rgba(0, 255, 170, 0.15),
@@ -178,7 +178,7 @@ html {
     background: rgba(0, 255, 170, 0.15);
     border: 1px solid rgba(0, 255, 170, 0.3);
     border-radius: 12px;
-    color: #00ffaa;
+    color: var(--color-primary);
     padding: 12px 16px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -298,7 +298,7 @@ html {
     margin-left: auto;
     box-shadow: 0 4px 12px rgba(0, 255, 170, 0.15);
     position: relative;
-    color: #ffffff;
+    color: var(--color-text);
 }
 
 .user-message::after {
@@ -320,7 +320,7 @@ html {
     margin-right: auto;
     box-shadow: 0 4px 12px rgba(255, 20, 147, 0.12);
     position: relative;
-    color: #ffffff;
+    color: var(--color-text);
 }
 
 .ai-message::after {
@@ -354,7 +354,7 @@ html {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(0, 255, 170, 0.2);
     border-radius: 12px;
-    color: #fff;
+    color: var(--color-text);
     padding: 14px 18px;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
@@ -400,7 +400,7 @@ html {
     background: linear-gradient(135deg, rgba(0, 255, 170, 0.2), rgba(0, 255, 170, 0.1));
     border: 1px solid rgba(0, 255, 170, 0.3);
     border-radius: 12px;
-    color: #00ffaa;
+    color: var(--color-primary);
     width: 48px;
     height: 48px;
     padding: 0;
@@ -583,7 +583,7 @@ html {
     margin: 0 0 20px 0;
     font-size: 18px;
     font-weight: 600;
-    color: #00ffaa;
+    color: var(--color-primary);
 }
 
 .profile-info {
@@ -608,7 +608,7 @@ html {
 
 .info-item div {
     font-size: 14px;
-    color: #fff;
+    color: var(--color-text);
     background: rgba(255, 255, 255, 0.05);
     padding: 8px 12px;
     border-radius: 6px;
@@ -624,7 +624,7 @@ html {
     background: linear-gradient(135deg, rgba(0, 255, 170, 0.15), rgba(0, 255, 170, 0.08));
     border: 1px solid rgba(0, 255, 170, 0.3);
     border-radius: 12px;
-    color: #00ffaa;
+    color: var(--color-primary);
     padding: 14px 20px;
     font-size: 14px;
     font-weight: 500;
@@ -670,7 +670,7 @@ html {
     background: rgba(255, 20, 147, 0.15);
     border: 1px solid rgba(255, 20, 147, 0.3);
     border-radius: 50%;
-    color: #ff1493;
+    color: var(--color-secondary);
     width: 36px;
     height: 36px;
     cursor: pointer;
@@ -703,7 +703,7 @@ html {
     border-radius: 50%;
     width: 48px;
     height: 48px;
-    color: #00ffaa;
+    color: var(--color-primary);
     font-size: 24px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -781,7 +781,7 @@ html {
     -webkit-appearance: none;
     width: 16px;
     height: 16px;
-    background: #00ffaa;
+    background: var(--color-primary);
     border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -794,7 +794,7 @@ html {
 
 .distance-value {
     font-size: 13px;
-    color: #00ffaa;
+    color: var(--color-primary);
     min-width: 30px;
     text-align: center;
 }
@@ -820,7 +820,7 @@ html {
 }
 
 .upload-header h3 {
-    color: #00ffaa;
+    color: var(--color-primary);
     margin: 0 0 8px 0;
     font-size: 20px;
     font-weight: 600;
@@ -842,7 +842,7 @@ html {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(0, 255, 170, 0.2);
     border-radius: 12px;
-    color: #fff;
+    color: var(--color-text);
     padding: 18px;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
@@ -871,7 +871,7 @@ html {
     gap: 8px;
     background: rgba(0, 255, 170, 0.15);
     border: 1px solid rgba(0, 255, 170, 0.3);
-    color: #00ffaa;
+    color: var(--color-primary);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -902,7 +902,7 @@ html {
 }
 
 #upload-status .success {
-    color: #00ffaa;
+    color: var(--color-primary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -948,7 +948,7 @@ html {
 .error-message {
     background: rgba(255, 20, 147, 0.1);
     border: 1px solid rgba(255, 20, 147, 0.3);
-    color: #ff1493;
+    color: var(--color-secondary);
     padding: 12px 16px;
     border-radius: 10px;
     margin: 16px 0;
@@ -1106,7 +1106,7 @@ html {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #00ffaa;
+    color: var(--color-primary);
 }
 
 .modal-close {
@@ -1124,7 +1124,7 @@ html {
 
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    color: var(--color-text);
 }
 
 .modal-body {
@@ -1137,7 +1137,7 @@ html {
 }
 
 .modal-body h3 {
-    color: #00ffaa;
+    color: var(--color-primary);
     margin: 24px 0 16px;
     font-size: 16px;
     font-weight: 600;
@@ -1161,7 +1161,7 @@ html {
 }
 
 .modal-body a {
-    color: #00ffaa;
+    color: var(--color-primary);
     text-decoration: none;
     transition: opacity 0.2s ease;
 }
@@ -1187,7 +1187,7 @@ body.modal-open {
 .node-header {
     margin-bottom: 12px;
     font-size: 16px;
-    color: #00ffaa;
+    color: var(--color-primary);
 }
 
 .node-description {
@@ -1207,7 +1207,7 @@ body.modal-open {
     background: rgba(0, 255, 170, 0.15);
     border: 1px solid rgba(0, 255, 170, 0.3);
     border-radius: 6px;
-    color: #00ffaa;
+    color: var(--color-primary);
     padding: 8px 16px;
     font-size: 14px;
     cursor: pointer;
@@ -1234,7 +1234,7 @@ body.modal-open {
 #node-edit-controls label {
     display: block;
     margin-bottom: 8px;
-    color: #00ffaa;
+    color: var(--color-primary);
     font-size: 14px;
 }
 
@@ -1244,7 +1244,7 @@ body.modal-open {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(0, 255, 170, 0.3);
     border-radius: 6px;
-    color: #fff;
+    color: var(--color-text);
     padding: 10px;
     font-size: 14px;
 }
@@ -1260,7 +1260,7 @@ body.modal-open {
 .action-button.primary {
     background: rgba(0, 255, 170, 0.2);
     border: 1px solid rgba(0, 255, 170, 0.4);
-    color: #00ffaa;
+    color: var(--color-primary);
 }
 
 .action-button.primary:hover {
@@ -1398,7 +1398,7 @@ body.modal-open {
 }
 
 .credits a:hover {
-    color: #00ffaa;
+    color: var(--color-primary);
     border-color: rgba(0, 255, 170, 0.3);
     background: rgba(0, 255, 170, 0.1);
 }
@@ -1480,7 +1480,7 @@ body.modal-open {
         /* Enhanced visual feedback */
         background: rgba(255, 20, 147, 0.2);
         border-color: rgba(255, 20, 147, 0.3);
-        color: #ff1493;
+        color: var(--color-secondary);
         transform: rotate(90deg);
     }
 
