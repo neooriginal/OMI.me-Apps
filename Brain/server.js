@@ -124,8 +124,13 @@ app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
 const port = process.env.PORT || 3000;
 
 
+// Configure AI client - support both OpenRouter and OpenAI
+const useOpenRouter = process.env.OPENROUTER_API_KEY && !process.env.FORCE_OPENAI;
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: useOpenRouter 
+        ? process.env.OPENROUTER_API_KEY 
+        : (process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.trim() : ''),
+    baseURL: useOpenRouter ? 'https://openrouter.ai/api/v1' : undefined
 });
 
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -275,7 +280,7 @@ Memory Status: ${context.nodes.length > 0 ?
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: useOpenRouter ? "openai/gpt-4o-mini" : "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
@@ -371,7 +376,7 @@ Return empty arrays if no meaningful patterns found.`;
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: useOpenRouter ? "openai/gpt-4o-mini" : "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
@@ -888,7 +893,7 @@ Provide a concise but insightful description that:
 Keep the description natural and engaging, focusing on the most meaningful connections.`;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: useOpenRouter ? "openai/gpt-4o-mini" : "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
