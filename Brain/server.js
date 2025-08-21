@@ -568,7 +568,7 @@ app.post('/api/reset-data', requireAuth, async (req, res) => {
         const uid = req.uid;
         
         // Use a single stored procedure to reset user data atomically
-        const { error: resetError } = await supabase.rpc('reset_user_data', { uid });
+        const { error: resetError } = await supabase.rpc('reset_user_data', { p_uid: uid });
         if (resetError) {
             console.error('Reset data error:', resetError);
             return res.status(500).json({ error: 'Failed to reset data' });
