@@ -562,6 +562,43 @@ app.post('/api/code-check', requireAuth, async (req, res) => {
     }
 });
 
+// Reset user data endpoint - allows starting fresh with new key
+app.post('/api/reset-data', requireAuth, async (req, res) => {
+    try {
+        const uid = req.uid;
+        
+        // Use a single stored procedure to reset user data atomically
+        const { error: resetError } = await supabase.rpc('reset_user_data', { p_uid: uid });
+        if (resetError) {
+            console.error('Reset data error:', resetError);
+            return res.status(500).json({ error: 'Failed to reset data' });
+        }
+        
+        // Destroy the session with a callback to ensure it's cleared before responding
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destruction error:', err);
+                return res.status(500).json({ error: 'Failed to destroy session' });
+            }
+            // Clear the session cookie with proper options
+            res.clearCookie('connect.sid', {
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production'
+            });
+            
+            return res.json({
+                success: true,
+                message: 'All data reset. Please login again to generate a new key.'
+            });
+        });
+    } catch (error) {
+        console.error('Reset data error:', error);
+        return res.status(500).json({ error: 'Failed to reset data' });
+    }
+});
+
 app.get("/setup", async (req, res) => {
     res.json({ 'is_setup_completed': true });
 });
