@@ -514,19 +514,38 @@ app.post("/api/auth/logout", (req, res) => {
 app.get('/api/profile', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
-        const { data: rows } = await supabase
+        const { data: rows, error } = await supabase
             .from('brain_users')
-            .select()
+            .select('uid, has_key')
             .eq('uid', uid);
 
-        if (rows && rows.length > 0) {
-            res.json({
-                uid: rows[0].uid,
-                loginTime: req.session.loginTime
-            });
-        } else {
-            res.status(404).json({ error: 'User not found' });
+        if (error) {
+            throw error;
         }
+
+        let profileRow = rows && rows.length > 0 ? rows[0] : null;
+
+        if (!profileRow) {
+            const { data: insertedRows, error: upsertError } = await supabase
+                .from('brain_users')
+                .upsert([{ uid }])
+                .select('uid, has_key')
+                .eq('uid', uid);
+
+            if (upsertError) {
+                throw upsertError;
+            }
+
+            profileRow = insertedRows && insertedRows.length > 0
+                ? insertedRows[0]
+                : { uid, has_key: false };
+        }
+
+        res.json({
+            uid: profileRow.uid,
+            hasKey: profileRow.has_key ?? false,
+            loginTime: req.session.loginTime
+        });
     } catch (error) {
         console.error('Profile error:', error);
         res.status(500).json({ error: 'Error fetching profile' });
