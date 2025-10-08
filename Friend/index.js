@@ -430,7 +430,7 @@ app.post("/get", validateUID, async (req, res, next) => {
 const messageBuffer = new MessageBuffer();
 const ANALYSIS_INTERVAL = 30;
 
-async function createNotificationPrompt(messages, uid, probabilitytorespond = 50) {
+async function createNotificationPrompt(messages, uid, probabilityToRespond = 50) {
   let customInstruction = "";
   let personality = "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
   let goals = "[]";
@@ -488,7 +488,7 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
 
   let prePrompt = `
     You are supposed to be a close friend to the user and provide personalized comments on the conversation.
-    The user has set the frequency to ${probabilitytorespond}%. Interpret this and decide whether to respond or not based on this probability and the guidelines below. If 100% is set, you should always respond with true. If 0% is set, you should always respond with false.
+    The user has set the frequency to ${probabilityToRespond}%. Interpret this and decide whether to respond or not based on this probability and the guidelines below. If 100% is set, you should always respond with true. If 0% is set, you should always respond with false.
     If the user especially asks you to respond (eg. Friend please respond to me), you should respond always regardless of the probability.
     Make sure to really think about, if its worth to send a notification to the user, since the user gets a phone notification every time you respond and it could get annoying if its not useful. Make sure not to respond to some random stuff. Also make sure not to respond to things that are not worth mentioning.
     Your task is to either respond with true or false based on if you would send a notification to the user based on the conversation below.
