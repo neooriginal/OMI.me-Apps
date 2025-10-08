@@ -43,7 +43,7 @@ const apiLimiter = rateLimit({
   message: { error: 'API rate limit exceeded.' },
 });
 
-app.use(generalLimiter);
+//app.use(generalLimiter);
 
 // Initialize Supabase client
 const supabase = createClient(
