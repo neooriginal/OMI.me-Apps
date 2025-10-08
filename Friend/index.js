@@ -513,14 +513,13 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
 
   const response = await openai.chat.completions.create(body);
 
-  let respond = response.choices[0].message.content;
+  const rawDecision = response?.choices?.[0]?.message?.content || "";
+  const normalizedDecision = rawDecision.trim().toLowerCase();
+  const decisionMatch = normalizedDecision.match(/^(true|false)/);
+  const respond = decisionMatch ? decisionMatch[1] : "true";
 
-  if (respond.startsWith("true")) {
-    respond = "true";
-  } else if (respond.startsWith("false")) {
-    respond = "false";
-  } else {
-    respond = "true";
+  if (!decisionMatch) {
+    console.warn("Notification decision in unexpected format:", rawDecision);
   }
 
   if (respond === "true") {
@@ -759,10 +758,14 @@ app.post("/webhook", webhookLimiter, [
     bufferData.lastAnalysisTime = currentTime;
     bufferData.messages = [];
 
-    console.log(`Notification generated for session ${sessionId}`);
-    console.log(notification);
+    if (notification.notification) {
+      console.log(`Notification generated for session ${sessionId}`);
+      console.log(notification);
+      return res.status(200).json(notification);
+    }
 
-    return res.status(200).json(notification);
+    console.log(`No notification generated for session ${sessionId}`);
+    return res.status(200).json({});
   }
 
   return res.status(202).json({});
