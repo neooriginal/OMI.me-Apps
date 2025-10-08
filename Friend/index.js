@@ -517,6 +517,15 @@ async function createNotificationPrompt(messages, uid, probabilitytorespond = 50
   const normalizedDecision = rawDecision.trim().toLowerCase();
   const decisionMatch = normalizedDecision.match(/^(true|false)/);
   const respond = decisionMatch ? decisionMatch[1] : "true";
+  const reasonText =
+    rawDecision.split(/reasoning\s*:/i)[1]?.trim() || null;
+
+  console.log("[Friend] notification decision", {
+    uid,
+    probabilityToRespond,
+    decision: respond,
+    reason: reasonText || rawDecision.trim(),
+  });
 
   if (!decisionMatch) {
     console.warn("Notification decision in unexpected format:", rawDecision);
