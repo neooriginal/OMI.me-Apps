@@ -200,34 +200,42 @@ async function loadMemoryGraph(uid) {
 // Save memory graph to database
 async function saveMemoryGraph(uid, newData) {
     try {
-        // Save new nodes
-        for (const entity of newData.entities) {
-            await supabase
+        const nodeRows = (newData.entities || []).map(entity => ({
+            uid,
+            node_id: entity.id,
+            type: entity.type,
+            name: entity.name,
+            connections: entity.connections ?? 0
+        }));
+
+        if (nodeRows.length > 0) {
+            const { error: nodeError } = await supabase
                 .from('memory_nodes')
-                .upsert([
-                    {
-                        uid: uid,
-                        node_id: entity.id,
-                        type: entity.type,
-                        name: entity.name,
-                        connections: entity.connections
-                    }
-                ]);
+                .upsert(nodeRows);
+
+            if (nodeError) {
+                throw nodeError;
+            }
         }
 
-        for (const rel of newData.relationships) {
-            await supabase
+        const relationshipRows = (newData.relationships || []).map(rel => ({
+            uid,
+            source: rel.source,
+            target: rel.target,
+            action: rel.action
+        }));
+
+        if (relationshipRows.length > 0) {
+            const { error: relationshipError } = await supabase
                 .from('memory_relationships')
-                .upsert([
-                    {
-                        uid: uid,
-                        source: rel.source,
-                        target: rel.target,
-                        action: rel.action
-                    }
-                ]);
+                .upsert(relationshipRows);
+
+            if (relationshipError) {
+                throw relationshipError;
+            }
         }
     } catch (error) {
+        console.error('Failed to persist memory graph:', error);
         throw error;
     }
 }
