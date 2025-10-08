@@ -527,7 +527,7 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
     `;
 
   const body = {
-    model: "gpt-4o-mini",
+    model: "gpt-5-nano",
     messages: [{ role: "user", content: prePrompt }],
   };
 
@@ -626,7 +626,7 @@ async function rateConversations(uid) {
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano",
       messages: [{ role: "user", content: ratingPrompt }],
     });
 
@@ -1031,7 +1031,7 @@ Respond concisely and helpfully in 1-3 sentences.`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-nano',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message },
@@ -1137,7 +1137,7 @@ async function analyzeSentiment(logs) {
     const prompt = `Analyze the sentiment of this text and respond with just one word: positive, negative, or neutral.\n\nText: ${recentMessages}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-nano",
       messages: [{ role: "user", content: prompt }],
     });
 
