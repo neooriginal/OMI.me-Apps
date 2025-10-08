@@ -200,7 +200,12 @@ async function loadMemoryGraph(uid) {
 // Save memory graph to database
 async function saveMemoryGraph(uid, newData) {
     try {
-        const nodeRows = (newData.entities || []).map(entity => ({
+        // Accept either "entities" (preferred) or "nodes" (fallback) to be robust to client payloads
+        const incomingEntities = Array.isArray(newData.entities) && newData.entities.length > 0
+            ? newData.entities
+            : (Array.isArray(newData.nodes) ? newData.nodes : []);
+
+        const nodeRows = incomingEntities.map(entity => ({
             uid,
             node_id: entity.id,
             type: entity.type,
@@ -208,14 +213,18 @@ async function saveMemoryGraph(uid, newData) {
             connections: entity.connections ?? 0
         }));
 
+        let nodesResult = { count: 0 };
         if (nodeRows.length > 0) {
-            const { error: nodeError } = await supabase
+            // Use explicit conflict target so PostgREST performs a true UPSERT on the composite unique key
+            const { data: nodeData, error: nodeError } = await supabase
                 .from('memory_nodes')
-                .upsert(nodeRows);
+                .upsert(nodeRows, { onConflict: 'uid,node_id' })
+                .select('uid,node_id');
 
             if (nodeError) {
                 throw nodeError;
             }
+            nodesResult.count = Array.isArray(nodeData) ? nodeData.length : 0;
         }
 
         const relationshipRows = (newData.relationships || []).map(rel => ({
@@ -225,15 +234,24 @@ async function saveMemoryGraph(uid, newData) {
             action: rel.action
         }));
 
+        let relResult = { count: 0 };
         if (relationshipRows.length > 0) {
-            const { error: relationshipError } = await supabase
+            // Insert relationships; table has no unique composite, so avoid unintended conflict behavior
+            const { data: relData, error: relationshipError } = await supabase
                 .from('memory_relationships')
-                .upsert(relationshipRows);
+                .insert(relationshipRows)
+                .select('uid,source,target');
 
             if (relationshipError) {
                 throw relationshipError;
             }
+            relResult.count = Array.isArray(relData) ? relData.length : 0;
         }
+
+        return {
+            nodesUpserted: nodesResult.count,
+            relationshipsInserted: relResult.count
+        };
     } catch (error) {
         console.error('Failed to persist memory graph:', error);
         throw error;
@@ -311,12 +329,12 @@ async function processTextWithGPT(text, existingMemory = { nodes: new Map(), rel
     // Convert existing nodes to a more usable format for the prompt
     const existingNodes = Array.from(existingMemory.nodes.values());
     const existingRelationships = existingMemory.relationships;
-    
+
     // Create context strings for existing memory
     const existingNodesContext = existingNodes.length > 0 ?
         `\nEXISTING NODES (REUSE THESE IDs WHEN POSSIBLE):\n${existingNodes.map(n => `- ${n.id}: ${n.name} (${n.type})`).join('\n')}` :
         '';
-    
+
     const existingRelationshipsContext = existingRelationships.length > 0 ?
         `\nEXISTING RELATIONSHIPS (REUSE THESE PATTERNS):\n${existingRelationships.map(r => `- ${r.source} → ${r.target}: ${r.action}`).slice(0, 20).join('\n')}` :
         '';
@@ -779,8 +797,9 @@ app.get('/api/memory-graph', requireAuth, async (req, res) => {
 app.post('/api/memory-graph', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
-        await saveMemoryGraph(uid, req.body);
-        res.json({ success: true });
+        const result = await saveMemoryGraph(uid, req.body);
+        // Respond with counts for easier diagnostics on client/devtools
+        res.json({ success: true, ...result });
     } catch (error) {
         console.error('Error saving memory graph:', error);
         res.status(500).json({ error: 'Error saving memory graph' });
@@ -809,7 +828,7 @@ app.post('/api/process-text', requireAuth, validateTextInput, async (req, res) =
 
         // Load existing memory graph to avoid creating duplicates
         const existingMemory = await loadMemoryGraph(uid);
-        
+
         const processedData = await processTextWithGPT(text, existingMemory);
         res.json(processedData);
     } catch (error) {

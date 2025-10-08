@@ -723,35 +723,68 @@ app.post("/webhook", webhookLimiter, [
     // Update analytics in database
     try {
       const uid = sessionId;
-      const { data: currentData } = await supabase
+
+      // Try to load current analytics row
+      const { data: currentData, error: selectError } = await supabase
         .from('frienddb')
         .select('logs, word_counts, time_distribution, total_words')
         .eq('uid', uid)
         .single();
 
-      if (currentData) {
-        const existingLogs = currentData.logs || [];
-        const newLogEntry = {
-          timestamp: currentTime,
-          messages: sortedMessages,
-        };
+      // Initialize analytics row when missing (e.g., first webhook event for this uid)
+      if (selectError && selectError.code !== 'PGRST116') {
+        // Unexpected select error (not "no rows found") - log it
+        console.error('Error selecting analytics row:', selectError);
+      }
 
-        const updatedLogs = [...existingLogs, newLogEntry];
-
-        // Calculate analytics
-        const wordCounts = calculateTopWords(updatedLogs);
-        const timeDistribution = calculateTimeDistribution(updatedLogs);
-        const totalWords = calculateTotalWords(updatedLogs);
-
-        await supabase
+      if (!currentData) {
+        const { error: insertError } = await supabase
           .from('frienddb')
-          .update({
-            logs: updatedLogs,
-            word_counts: wordCounts,
-            time_distribution: timeDistribution,
-            total_words: totalWords
-          })
-          .eq('uid', uid);
+          .insert([{
+            uid,
+            logs: [],
+            word_counts: {},
+            time_distribution: { morning: 0, afternoon: 0, evening: 0, night: 0 },
+            total_words: 0
+          }]);
+
+        if (insertError) {
+          console.error('Error initializing analytics row:', insertError);
+        }
+      }
+
+      // Normalize existing logs to an array
+      const existingLogs = Array.isArray(currentData?.logs)
+        ? currentData.logs
+        : (typeof currentData?.logs === 'string'
+          ? (currentData.logs.trim() ? JSON.parse(currentData.logs) : [])
+          : []);
+
+      const newLogEntry = {
+        timestamp: currentTime,
+        messages: sortedMessages,
+      };
+
+      const updatedLogs = [...existingLogs, newLogEntry];
+
+      // Calculate analytics
+      const wordCounts = calculateTopWords(updatedLogs);
+      const timeDistribution = calculateTimeDistribution(updatedLogs);
+      const totalWords = calculateTotalWords(updatedLogs);
+
+      // Persist analytics
+      const { error: updateError } = await supabase
+        .from('frienddb')
+        .update({
+          logs: updatedLogs,
+          word_counts: wordCounts,
+          time_distribution: timeDistribution,
+          total_words: totalWords
+        })
+        .eq('uid', uid);
+
+      if (updateError) {
+        console.error('Error updating analytics:', updateError);
       }
     } catch (err) {
       console.error("Error updating analytics:", err);
