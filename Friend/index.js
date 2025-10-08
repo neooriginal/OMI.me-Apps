@@ -338,6 +338,7 @@ app.post("/deleteuser", validateUID, async (req, res, next) => {
 
 app.post("/save", apiLimiter, validateUID, validateSaveInput, [
   body('customInstruction').optional().isString().isLength({ max: 2000 }),
+  body('custominstruction').optional().isString().isLength({ max: 2000 }),
   body('personality').optional().isString().isLength({ max: 500 }),
 ], async (req, res, next) => {
   // Check validation results
@@ -348,18 +349,21 @@ app.post("/save", apiLimiter, validateUID, validateSaveInput, [
 
   try {
     const uid = sanitizeInput(req.body.uid);
-    const responsepercentage = parseInt(req.body.responsepercentage) || 10;
-    const customInstruction = sanitizeInput(
+    const responsepercentageRaw = parseInt(req.body.responsepercentage, 10);
+    const customInstructionValue = sanitizeInput(
       (req.body.customInstruction ?? req.body.custominstruction ?? "")
     );
     const personality = sanitizeInput(req.body.personality);
-    const cooldown = parseInt(req.body.cooldown) || 5;
+    const cooldownRaw = parseInt(req.body.cooldown, 10);
 
-    let updateData = {
+    const normalizedResponsepercentage = Number.isFinite(responsepercentageRaw) ? responsepercentageRaw : 10;
+    const normalizedCooldown = Number.isFinite(cooldownRaw) ? cooldownRaw : 5;
+
+    const updateData = {
       uid,
-      responsepercentage,
-      customInstruction,
-      cooldown
+      responsepercentage: normalizedResponsepercentage,
+      custominstruction: customInstructionValue,
+      cooldown: normalizedCooldown
     };
 
     if (personality) {
@@ -375,11 +379,16 @@ app.post("/save", apiLimiter, validateUID, validateSaveInput, [
       updateData.personality = formattedPersonality;
     }
 
-    await supabase
+    const { error: upsertError } = await supabase
       .from('frienddb')
-      .upsert([updateData]);
+      .upsert([updateData], { onConflict: 'uid' });
 
-    cooldownTimeCache[uid] = cooldown;
+    if (upsertError) {
+      console.error("Failed to save settings:", upsertError);
+      return res.status(500).json({ error: "Failed to save settings" });
+    }
+
+    cooldownTimeCache[uid] = normalizedCooldown;
 
     res.json({ success: true });
   } catch (err) {
@@ -392,7 +401,7 @@ app.post("/get", validateUID, async (req, res, next) => {
     const uid = req.body.uid;
     const { data: rows } = await supabase
       .from('frienddb')
-      .select('responsepercentage, customInstruction, personality, cooldown')
+      .select('responsepercentage, custominstruction, personality, cooldown')
       .eq('uid', uid)
       .single();
 
@@ -411,12 +420,19 @@ app.post("/get", validateUID, async (req, res, next) => {
       cooldownTimeCache[uid] = defaultData.cooldown;
       res.json(defaultData);
     } else {
+      const parsedResponsepercentage = parseInt(rows.responsepercentage, 10);
+      const parsedCooldown = parseInt(rows.cooldown, 10);
+      const storedCustomInstruction =
+        rows.customInstruction ??
+        rows.custominstruction ??
+        "";
+
       const data = {
-        responsepercentage: parseInt(rows.responsepercentage) || 10,
-        customInstruction: rows.customInstruction || "",
-        custominstruction: rows.customInstruction || "",
+        responsepercentage: Number.isFinite(parsedResponsepercentage) ? parsedResponsepercentage : 10,
+        customInstruction: storedCustomInstruction,
+        custominstruction: storedCustomInstruction,
         personality: rows.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik",
-        cooldown: parseInt(rows.cooldown) || 5
+        cooldown: Number.isFinite(parsedCooldown) ? parsedCooldown : 5
       };
       cooldownTimeCache[uid] = data.cooldown;
       res.json(data);
@@ -438,12 +454,16 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
   try {
     const { data: result } = await supabase
       .from('frienddb')
-      .select('customInstruction, personality, goals, listenedTo')
+      .select('custominstruction, personality, goals, listenedTo')
       .eq('uid', uid)
       .single();
 
     if (result) {
-      customInstruction = result.customInstruction || "";
+      const storedInstruction =
+        result.custominstruction ??
+        result.customInstruction ??
+        "";
+      customInstruction = storedInstruction;
       personality = result.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
       goals = result.goals || "[]";
 
