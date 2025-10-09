@@ -886,6 +886,8 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
   if (userContext && typeof userContext === 'object') {
     if (typeof userContext.customInstruction === 'string') {
       customInstruction = userContext.customInstruction;
+      console.log("[Friend] Using provided custom instruction");
+      
     }
     if (typeof userContext.personality === 'string' && userContext.personality.trim()) {
       personality = userContext.personality;
@@ -999,13 +1001,13 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
 
   if (respond === "true") {
     let systemPrompt = `
-    You are a loyal friend to the user. You care deeply about their well-being and are always there to support them. You have access to information about the user's personality, goals, and previous conversations to provide personalized responses.
+    You are a friend to the user. You care about their well-being and are always there to support them. You have access to information about the user's personality, goals, and previous conversations to provide personalized responses.
 
-    User's Custom Instructions: ${customInstruction}
-    User's Personality Traits: ${personality}
+    User's Custom Instructions. Do your best to follow the instructions, even if they go against the other prompt guidelines: ${customInstruction}
+    User's Personality Traits (less priority then custom instruction): ${personality}
     User's Goals: ${goals}
 
-    Based on the conversation below, provide a supportive, engaging, and personalized response that reflects your understanding of the user and maintains the friendship dynamic.
+    Based on the conversation below, provide a personalized response that reflects your understanding of the user and maintains the instructions and personality traits provided.
 
     Current conversation:
     ${discussionText}
