@@ -481,18 +481,6 @@
 
 
 
-        <div class="settings-section danger-section">
-            <div class="settings-header">
-                <h3>danger zone</h3>
-                <div class="tooltip">
-                    <span class="tooltip-text">permanently delete all your data</span>
-                </div>
-            </div>
-            <p class="settings-description">once you delete your data, there is no going back. please be certain.</p>
-            <button class="danger-button" onclick="deleteData()">
-                delete all data
-            </button>
-        </div>
     </main>
 
     <footer class="footer">
@@ -604,11 +592,13 @@
         });
 
         function deleteData() {
-            swal.fire({
+            Swal.fire({
                 title: 'are you sure?',
                 text: 'this action cannot be undone',
                 icon: 'warning',
-                confirmButtonText: 'yes, delete my data'
+                showCancelButton: true,
+                confirmButtonText: 'yes, delete my data',
+                cancelButtonText: 'cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
                     window.location.href = '/deleteData?uid=' + getQueryParam('uid');

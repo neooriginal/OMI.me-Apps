@@ -334,28 +334,32 @@
         async function initializeDashboard() {
             const uid = getQueryParam('uid');
             if (!uid) return;
-
+    
             try {
                 const response = await fetch(`/analytics?uid=${uid}`);
                 const data = await response.json();
-
-                let totalWords = document.getElementById('totalWords');
-                totalWords.textContent = data.totalWords || '0';
-
+    
+                const totalWordsEl = document.getElementById('totalWords');
+                totalWordsEl.textContent = (typeof data.totalWords === 'number' ? data.totalWords : 0).toString();
+    
+                // Use safe defaults if backend hasn't populated analytics yet
+                const timeDist = data.timeDistribution || { morning: 0, afternoon: 0, evening: 0, night: 0 };
+                const wordCounts = data.wordCounts || {};
+                const sentiment = data.sentiment || { overall: 'neutral', confidence: 0.5 };
+    
                 // Initialize charts
-                initializeTimeChart(data.timeDistribution);
-                initializeWordCloud(data.wordCounts);
-                initializeSentimentChart(data.sentiment);
-
+                initializeTimeChart(timeDist);
+                initializeWordCloud(wordCounts);
+                initializeSentimentChart(sentiment);
+    
                 // Remove loading blur from analytics cards
                 document.querySelectorAll('.getStatisticLoading').forEach(card => {
                     card.classList.remove('loading-blur');
                 });
-
+    
                 // Initialize goals
                 await loadGoals();
-
-
+    
             } catch (error) {
                 console.error('Failed to load analytics:', error);
                 showToast('Failed to load analytics', 'error');
@@ -553,27 +557,38 @@
         async function loadGoals() {
             const uid = getQueryParam('uid');
             const container = document.getElementById('goalsContainer');
-
+    
             try {
                 const response = await fetch(`/goals?uid=${uid}`);
                 const data = await response.json();
-                const goals = data.goals || [];
-
-                container.innerHTML = goals.map(goal => `
-                    <div class="goal-card">
+                const goals = Array.isArray(data.goals) ? data.goals : [];
+    
+                container.innerHTML = '';
+    
+                goals.forEach(goal => {
+                    const targetNum = Number(goal.target) || 0;
+                    const progressNum = Number(goal.progress) || 0;
+                    const pct = targetNum > 0 ? Math.min(100, Math.max(0, (progressNum / targetNum) * 100)) : 0;
+                    const created = goal.createdAt || goal.created_at || null;
+                    const createdText = created ? new Date(created).toLocaleDateString() : 'Unknown';
+    
+                    const card = document.createElement('div');
+                    card.className = 'goal-card';
+                    card.innerHTML = `
                         <div class="goal-header">
-                            <h4>${formatGoalType(goal.type)}</h4>
-                            <button class="delete-goal" onclick="deleteGoal(${goal.id})">
+                            <h4>${formatGoalType(goal.type || '')}</h4>
+                            <button class="delete-goal" onclick="deleteGoal('${goal.id}')">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <p class="goal-progress-text">${goal.progress}/${goal.target}</p>
+                        <p class="goal-progress-text">${progressNum}/${targetNum}</p>
                         <div class="goal-progress">
-                            <div class="goal-progress-bar" style="width: ${(goal.progress / goal.target) * 100}%"></div>
+                            <div class="goal-progress-bar" style="width: ${pct}%"></div>
                         </div>
-                        <p class="goal-date">Started ${new Date(goal.created_at).toLocaleDateString()}</p>
-                    </div>
-                `).join('');
+                        <p class="goal-date">Started ${createdText}</p>
+                    `;
+                    container.appendChild(card);
+                });
             } catch (error) {
                 console.error('Failed to load goals:', error);
                 showToast('Failed to load goals', 'error');
