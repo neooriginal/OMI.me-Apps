@@ -74,6 +74,437 @@ const stopWords = new Set([
   "rather", "every", "both", "follow", "along", "going", "much", "something", "nothing", "everything", "nowhere", "somewhere", "anywhere", "everywhere", "whatever", "whichever", "whoever", "whomsoever", "whosoever", "whoso", "been", "what", "being", "way", "had", "which"
 ]);
 
+const POSITIVE_SENTIMENT_TERMS = new Set([
+  'great',
+  'amazing',
+  'awesome',
+  'good',
+  'love',
+  'happy',
+  'excited',
+  'grateful',
+  'thanks',
+  'appreciate',
+  'fantastic',
+  'wonderful'
+]);
+
+const NEGATIVE_SENTIMENT_TERMS = new Set([
+  'bad',
+  'sad',
+  'angry',
+  'upset',
+  'hate',
+  'terrible',
+  'frustrated',
+  'worried',
+  'anxious',
+  'annoyed',
+  'stressed',
+  'overwhelmed'
+]);
+
+const BASE_TIME_DISTRIBUTION = Object.freeze({
+  morning: 0,
+  afternoon: 0,
+  evening: 0,
+  night: 0,
+});
+
+const BASE_SENTIMENT = Object.freeze({
+  overall: 'neutral',
+  confidence: 0.5,
+});
+
+const WORD_COUNT_STORAGE_LIMIT = 200;
+const RECENT_ACTIVITY_LIMIT = 200;
+const SENTIMENT_HISTORY_LIMIT = 50;
+const LOG_HISTORY_LIMIT = 500;
+const DEFAULT_PERSONALITY = "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
+
+function createDefaultTimeDistribution() {
+  return { ...BASE_TIME_DISTRIBUTION };
+}
+
+function createDefaultAnalyticsState() {
+  return {
+    totalConversations: 0,
+    sentiment: { ...BASE_SENTIMENT },
+    sentimentHistory: [],
+    recentActivity: [],
+  };
+}
+function parseJsonObject(raw, fallbackFactory) {
+  const baseValue = fallbackFactory();
+  if (raw === null || raw === undefined) {
+    return baseValue;
+  }
+
+  if (typeof raw === 'string') {
+    if (!raw.trim()) {
+      return baseValue;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { ...baseValue, ...parsed };
+      }
+      return baseValue;
+    } catch {
+      return baseValue;
+    }
+  }
+
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return { ...baseValue, ...raw };
+  }
+
+  return baseValue;
+}
+
+function parseWordCounts(raw) {
+  const parsed = parseJsonObject(raw, () => ({}));
+  const sanitized = {};
+
+  for (const [word, count] of Object.entries(parsed)) {
+    if (typeof word === 'string' && Number.isFinite(count) && count > 0) {
+      sanitized[word] = count;
+    }
+  }
+
+  return sanitized;
+}
+
+function mergeWordCounts(baseCounts, deltaCounts) {
+  const merged = { ...baseCounts };
+
+  for (const [word, count] of Object.entries(deltaCounts)) {
+    merged[word] = (merged[word] || 0) + count;
+  }
+
+  return merged;
+}
+
+function pruneWordCounts(wordCounts, limit = WORD_COUNT_STORAGE_LIMIT) {
+  const entries = Object.entries(wordCounts)
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .sort(([, a], [, b]) => b - a);
+
+  if (entries.length <= limit) {
+    return Object.fromEntries(entries);
+  }
+
+  return Object.fromEntries(entries.slice(0, limit));
+}
+
+function countWords(text) {
+  if (!text || typeof text !== 'string') {
+    return 0;
+  }
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+}
+
+function sanitizeWordForCounting(word) {
+  if (!word) {
+    return '';
+  }
+  return word.replace(/[^\w']/g, '').toLowerCase();
+}
+
+function buildWordCountsFromMessages(messages) {
+  const counts = {};
+
+  for (const message of messages) {
+    if (!message?.is_user || typeof message.text !== 'string') {
+      continue;
+    }
+
+    const words = message.text.toLowerCase().split(/\s+/);
+    for (const rawWord of words) {
+      const sanitized = sanitizeWordForCounting(rawWord);
+      if (
+        sanitized.length > 2 &&
+        !stopWords.has(sanitized) &&
+        /^[a-z0-9']+$/.test(sanitized)
+      ) {
+        counts[sanitized] = (counts[sanitized] || 0) + 1;
+      }
+    }
+  }
+
+  return counts;
+}
+
+function countWordsInMessages(messages) {
+  return messages.reduce((total, message) => total + countWords(message?.text ?? ''), 0);
+}
+
+function getConversationTimestamp(messages, fallbackSeconds) {
+  const lastMessage = messages[messages.length - 1];
+  const timestampSeconds = Number(lastMessage?.timestamp);
+  if (Number.isFinite(timestampSeconds) && timestampSeconds > 0) {
+    return timestampSeconds;
+  }
+  return fallbackSeconds;
+}
+
+function buildSentimentText(messages) {
+  const userMessages = messages
+    .filter((message) => message?.is_user && typeof message.text === 'string')
+    .map((message) => message.text.trim())
+    .filter(Boolean);
+
+  return userMessages.join('\n');
+}
+
+function parseTimeDistribution(raw) {
+  const parsed = parseJsonObject(raw, createDefaultTimeDistribution);
+  const distribution = createDefaultTimeDistribution();
+
+  for (const key of Object.keys(distribution)) {
+    const value = Number(parsed[key]);
+    distribution[key] = Number.isFinite(value) && value >= 0 ? value : 0;
+  }
+
+  return distribution;
+}
+
+function parseAnalytics(raw) {
+  const parsed = parseJsonObject(raw, createDefaultAnalyticsState);
+
+  const sentimentRaw = parsed.sentiment;
+  const sentiment =
+    sentimentRaw && typeof sentimentRaw === 'object'
+      ? {
+          overall:
+            typeof sentimentRaw.overall === 'string'
+              ? sentimentRaw.overall
+              : BASE_SENTIMENT.overall,
+          confidence: Number.isFinite(Number(sentimentRaw.confidence))
+            ? Number(sentimentRaw.confidence)
+            : BASE_SENTIMENT.confidence,
+        }
+      : { ...BASE_SENTIMENT };
+
+  const sanitizeHistoryEntry = (entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    const timestamp = Number(entry.timestamp);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) {
+      return null;
+    }
+    const overall =
+      typeof entry.overall === 'string' ? entry.overall : sentiment.overall;
+    const confidence = Number(entry.confidence);
+    return {
+      timestamp,
+      overall,
+      confidence: Number.isFinite(confidence) ? confidence : sentiment.confidence,
+    };
+  };
+
+  const sentimentHistory = Array.isArray(parsed.sentimentHistory)
+    ? parsed.sentimentHistory
+        .map(sanitizeHistoryEntry)
+        .filter(Boolean)
+        .slice(-SENTIMENT_HISTORY_LIMIT)
+    : [];
+
+  const recentActivity = Array.isArray(parsed.recentActivity)
+    ? parsed.recentActivity
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') {
+            return null;
+          }
+          const timestamp = Number(entry.timestamp);
+          const userMessages = Number(entry.userMessages);
+          const friendMessages = Number(entry.friendMessages);
+          if (!Number.isFinite(timestamp) || timestamp <= 0) {
+            return null;
+          }
+          return {
+            timestamp,
+            userMessages: Number.isFinite(userMessages) ? userMessages : 0,
+            friendMessages: Number.isFinite(friendMessages) ? friendMessages : 0,
+          };
+        })
+        .filter(Boolean)
+        .slice(-RECENT_ACTIVITY_LIMIT)
+    : [];
+
+  return {
+    totalConversations: Number.isFinite(Number(parsed.totalConversations))
+      ? Number(parsed.totalConversations)
+      : 0,
+    sentiment,
+    sentimentHistory,
+    recentActivity,
+  };
+}
+
+function incrementTimeDistribution(distribution, timestampSeconds) {
+  const updated = parseTimeDistribution(distribution);
+  const date = new Date(
+    Number.isFinite(timestampSeconds)
+      ? timestampSeconds * 1000
+      : Date.now(),
+  );
+  const hour = date.getHours();
+
+  if (hour >= 6 && hour < 12) {
+    updated.morning += 1;
+  } else if (hour >= 12 && hour < 18) {
+    updated.afternoon += 1;
+  } else if (hour >= 18 && hour < 22) {
+    updated.evening += 1;
+  } else {
+    updated.night += 1;
+  }
+
+  return updated;
+}
+
+function trimArrayToLimit(array, limit) {
+  if (!Array.isArray(array) || array.length <= limit) {
+    return Array.isArray(array) ? array : [];
+  }
+  return array.slice(-limit);
+}
+
+function parseLogs(raw) {
+  if (Array.isArray(raw)) {
+    return raw.filter(entry => entry && typeof entry === 'object');
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed.filter(entry => entry && typeof entry === 'object') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function normalizeGoalsForPrompt(raw) {
+  if (!raw) {
+    return '[]';
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return '[]';
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed) || (parsed && typeof parsed === 'object')) {
+        return JSON.stringify(parsed);
+      }
+    } catch {
+      // Not JSON, fall through to return trimmed string
+    }
+    return trimmed;
+  }
+
+  if (Array.isArray(raw) || typeof raw === 'object') {
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      return '[]';
+    }
+  }
+
+  return '[]';
+}
+
+function appendLogEntry(existingLogs, newEntry, limit = LOG_HISTORY_LIMIT) {
+  const baseLogs = Array.isArray(existingLogs) ? existingLogs : [];
+  return trimArrayToLimit([...baseLogs, newEntry], limit);
+}
+
+function deriveSentimentFromMessages(messages) {
+  const text = buildSentimentText(messages).toLowerCase();
+  if (!text) {
+    return { overall: BASE_SENTIMENT.overall, confidence: BASE_SENTIMENT.confidence };
+  }
+
+  let positiveScore = 0;
+  let negativeScore = 0;
+
+  POSITIVE_SENTIMENT_TERMS.forEach((term) => {
+    const matches = text.match(new RegExp(`\\b${term}\\b`, 'g'));
+    if (matches) {
+      positiveScore += matches.length;
+    }
+  });
+
+  NEGATIVE_SENTIMENT_TERMS.forEach((term) => {
+    const matches = text.match(new RegExp(`\\b${term}\\b`, 'g'));
+    if (matches) {
+      negativeScore += matches.length;
+    }
+  });
+
+  let overall = BASE_SENTIMENT.overall;
+  if (positiveScore > negativeScore) {
+    overall = 'positive';
+  } else if (negativeScore > positiveScore) {
+    overall = 'negative';
+  }
+
+  const confidenceDelta = Math.min(0.4, Math.abs(positiveScore - negativeScore) * 0.1);
+  const confidence = Math.min(0.9, BASE_SENTIMENT.confidence + confidenceDelta);
+
+  return { overall, confidence };
+}
+
+function updateAnalyticsState(existingAnalyticsRaw, logEntry) {
+  const analytics = parseAnalytics(existingAnalyticsRaw);
+  const timestamp = Number(logEntry?.timestamp) || Math.floor(Date.now() / 1000);
+  const userMessages = Array.isArray(logEntry?.messages)
+    ? logEntry.messages.filter((msg) => msg?.is_user).length
+    : 0;
+  const friendMessages = Array.isArray(logEntry?.messages)
+    ? logEntry.messages.length - userMessages
+    : 0;
+
+  analytics.totalConversations += 1;
+
+  analytics.recentActivity = trimArrayToLimit([
+    ...analytics.recentActivity,
+    {
+      timestamp,
+      userMessages,
+      friendMessages
+    }
+  ], RECENT_ACTIVITY_LIMIT);
+
+  const sentimentSummary = deriveSentimentFromMessages(logEntry?.messages || []);
+  analytics.sentiment = sentimentSummary;
+  analytics.sentimentHistory = trimArrayToLimit([
+    ...analytics.sentimentHistory,
+    {
+      timestamp,
+      overall: sentimentSummary.overall,
+      confidence: sentimentSummary.confidence
+    }
+  ], SENTIMENT_HISTORY_LIMIT);
+
+  return analytics;
+}
+
 // Middleware to parse JSON bodies with size limits
 app.use(express.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
@@ -268,7 +699,7 @@ app.post("/dashboardData", validateUID, async (req, res, next) => {
 
     const { data: userData } = await supabase
       .from('frienddb')
-      .select('listenedTo, rating')
+      .select('listenedto, rating')
       .eq('uid', uid)
       .single();
 
@@ -284,7 +715,7 @@ app.post("/dashboardData", validateUID, async (req, res, next) => {
       });
     } else {
       res.json({
-        listenedto: parseInt(userData.listenedTo) || 0,
+        listenedto: parseInt(userData.listenedto) || 0,
         rating: parseInt(userData.rating) || 100
       });
     }
@@ -446,44 +877,60 @@ app.post("/get", validateUID, async (req, res, next) => {
 const messageBuffer = new MessageBuffer();
 const ANALYSIS_INTERVAL = 30;
 
-async function createNotificationPrompt(messages, uid, probabilityToRespond = 50) {
+async function createNotificationPrompt(messages, uid, probabilityToRespond = 50, userContext) {
   let customInstruction = "";
-  let personality = "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
-  let goals = "[]";
+  let personality = DEFAULT_PERSONALITY;
+  let goalsRaw = '[]';
+  let listenedTo = null;
 
-  try {
-    const { data: result } = await supabase
-      .from('frienddb')
-      .select('custominstruction, personality, goals, listenedTo')
-      .eq('uid', uid)
-      .single();
-
-    if (result) {
-      const storedInstruction =
-        result.custominstruction ??
-        result.customInstruction ??
-        "";
-      customInstruction = storedInstruction;
-      personality = result.personality || "100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik";
-      goals = result.goals || "[]";
-
-      // Update listenedTo counter
-      const currentlyListenedTo = parseInt(result.listenedTo) || 0;
-      await supabase
-        .from('frienddb')
-        .update({ listenedTo: currentlyListenedTo + 1 })
-        .eq('uid', uid);
-    } else {
-      // Create user if doesn't exist
-      await supabase
-        .from('frienddb')
-        .upsert([{ uid, listenedTo: 1 }]);
+  if (userContext && typeof userContext === 'object') {
+    if (typeof userContext.customInstruction === 'string') {
+      customInstruction = userContext.customInstruction;
     }
-  } catch (err) {
-    console.error("Failed to get user data from database:", err.message);
+    if (typeof userContext.personality === 'string' && userContext.personality.trim()) {
+      personality = userContext.personality;
+    }
+    if (userContext.goals !== undefined) {
+      goalsRaw = userContext.goals;
+    }
+    if (Number.isFinite(Number(userContext.listenedTo))) {
+      listenedTo = Number(userContext.listenedTo);
+    }
+  } else {
+    try {
+      const { data: result } = await supabase
+        .from('frienddb')
+        .select('custominstruction, customInstruction, personality, goals, listenedto, listenedTo')
+        .eq('uid', uid)
+        .single();
+
+      if (result) {
+        const storedInstruction =
+          result.custominstruction ??
+          result.customInstruction ??
+          "";
+        customInstruction = storedInstruction;
+        personality = result.personality || DEFAULT_PERSONALITY;
+        goalsRaw = result.goals ?? '[]';
+
+        const listenedCandidate = result.listenedto ?? result.listenedTo;
+        if (Number.isFinite(Number(listenedCandidate))) {
+          listenedTo = Number(listenedCandidate);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to get user data from database:", err.message);
+    }
   }
 
-  // Format the discussion with speaker labels
+  const goals = normalizeGoalsForPrompt(goalsRaw);
+  const profileMetadata = {
+    customInstruction,
+    personality,
+    goals,
+    listenedTo
+  };
+
   const formattedDiscussion = messages.map((msg) => {
     const speaker = msg.is_user ? "{{user_name}}" : "other";
     return `${msg.text} (${speaker})`;
@@ -501,7 +948,6 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
   if (!previousDiscusstionsFull[uid]) previousDiscusstionsFull[uid] = [];
   previousDiscusstionsFull[uid].push(discussionText);
 
-  //let the AI rate the discussion every 100 discussions
   if (previousDiscusstionsFull[uid].length - lastRating[uid] >= 100) {
     rateConversations(uid);
   }
@@ -575,9 +1021,10 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
         prompt: systemPrompt,
         params: ["user_name", "user_facts"],
       },
+      profile: profileMetadata
     };
   } else {
-    return {};
+    return { profile: profileMetadata };
   }
 }
 
@@ -720,66 +1167,86 @@ app.post("/webhook", webhookLimiter, [
       (a, b) => a.timestamp - b.timestamp,
     );
 
+    let userProfileContext = null;
+
     // Update analytics in database
     try {
       const uid = sessionId;
 
-      // Try to load current analytics row
-      const { data: currentData, error: selectError } = await supabase
+      const { data: selectData, error: selectError } = await supabase
         .from('frienddb')
-        .select('logs, word_counts, time_distribution, total_words')
+        .select('logs, word_counts, time_distribution, total_words, analytics, listenedto, listenedTo, custominstruction, customInstruction, personality, goals')
         .eq('uid', uid)
         .single();
 
-      // Initialize analytics row when missing (e.g., first webhook event for this uid)
       if (selectError && selectError.code !== 'PGRST116') {
-        // Unexpected select error (not "no rows found") - log it
         console.error('Error selecting analytics row:', selectError);
       }
 
-      if (!currentData) {
+      let rowData = selectData;
+      if (!rowData) {
+        rowData = {
+          uid,
+          logs: [],
+          word_counts: {},
+          time_distribution: createDefaultTimeDistribution(),
+          total_words: 0,
+          analytics: createDefaultAnalyticsState(),
+          listenedto: 0,
+          custominstruction: '',
+          personality: DEFAULT_PERSONALITY,
+          goals: []
+        };
+
         const { error: insertError } = await supabase
           .from('frienddb')
-          .insert([{
-            uid,
-            logs: [],
-            word_counts: {},
-            time_distribution: { morning: 0, afternoon: 0, evening: 0, night: 0 },
-            total_words: 0
-          }]);
+          .insert([rowData]);
 
         if (insertError) {
           console.error('Error initializing analytics row:', insertError);
         }
       }
 
-      // Normalize existing logs to an array
-      const existingLogs = Array.isArray(currentData?.logs)
-        ? currentData.logs
-        : (typeof currentData?.logs === 'string'
-          ? (currentData.logs.trim() ? JSON.parse(currentData.logs) : [])
-          : []);
+      const existingLogs = parseLogs(rowData.logs);
+      const existingWordCounts = parseWordCounts(rowData.word_counts);
+      const existingTimeDistribution = parseTimeDistribution(rowData.time_distribution);
+      const existingTotalWords = Number(rowData.total_words) || 0;
+      const existingAnalyticsRaw = rowData.analytics ?? createDefaultAnalyticsState();
+      const existingListenedTo = Number(rowData.listenedto ?? rowData.listenedTo ?? 0);
+      const storedInstruction = rowData.custominstruction ?? rowData.customInstruction ?? '';
+      const storedPersonality = rowData.personality || DEFAULT_PERSONALITY;
+      const storedGoals = rowData.goals ?? [];
 
       const newLogEntry = {
         timestamp: currentTime,
         messages: sortedMessages,
       };
 
-      const updatedLogs = [...existingLogs, newLogEntry];
+      const updatedLogs = appendLogEntry(existingLogs, newLogEntry);
+      const updatedWordCounts = pruneWordCounts(
+        mergeWordCounts(existingWordCounts, buildWordCountsFromMessages(newLogEntry.messages))
+      );
+      const updatedTotalWords = existingTotalWords + countWordsInMessages(newLogEntry.messages);
+      const updatedTimeDistribution = incrementTimeDistribution(existingTimeDistribution, newLogEntry.timestamp);
+      const updatedAnalytics = updateAnalyticsState(existingAnalyticsRaw, newLogEntry);
+      const updatedListenedTo = existingListenedTo + 1;
 
-      // Calculate analytics
-      const wordCounts = calculateTopWords(updatedLogs);
-      const timeDistribution = calculateTimeDistribution(updatedLogs);
-      const totalWords = calculateTotalWords(updatedLogs);
+      userProfileContext = {
+        customInstruction: storedInstruction,
+        personality: storedPersonality,
+        goals: storedGoals,
+        listenedTo: updatedListenedTo
+      };
 
-      // Persist analytics
       const { error: updateError } = await supabase
         .from('frienddb')
         .update({
           logs: updatedLogs,
-          word_counts: wordCounts,
-          time_distribution: timeDistribution,
-          total_words: totalWords
+          word_counts: updatedWordCounts,
+          time_distribution: updatedTimeDistribution,
+          total_words: updatedTotalWords,
+          analytics: updatedAnalytics,
+          listenedto: updatedListenedTo
         })
         .eq('uid', uid);
 
@@ -815,19 +1282,21 @@ app.post("/webhook", webhookLimiter, [
       sortedMessages,
       sessionId,
       probabilityToRespond,
+      userProfileContext
     );
 
     bufferData.lastAnalysisTime = currentTime;
     bufferData.messages = [];
 
-    if (notification.notification) {
+    if (notification?.notification) {
       console.log(`Notification generated for session ${sessionId}`);
       console.log(notification);
       return res.status(200).json(notification);
     }
 
+    const fallbackPayload = notification?.profile ? { profile: notification.profile } : {};
     console.log(`No notification generated for session ${sessionId}`);
-    return res.status(200).json({});
+    return res.status(200).json(fallbackPayload);
   }
 
   return res.status(202).json({});
