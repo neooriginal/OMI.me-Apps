@@ -884,7 +884,7 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
   let listenedTo = null;
 
   if (userContext && typeof userContext === 'object') {
-    JSON.stringify(userContext);
+    console.log(JSON.stringify(userContext))
     
     if (typeof userContext.customInstruction === 'string') {
       customInstruction = userContext.customInstruction;
