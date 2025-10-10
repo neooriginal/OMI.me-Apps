@@ -532,7 +532,7 @@ let cooldownTimeCache = [];
           uid TEXT UNIQUE NOT NULL,
           cooldown INTEGER DEFAULT 0,
           responsepercentage INTEGER DEFAULT 10,
-          customInstruction TEXT DEFAULT '',
+          custominstruction TEXT DEFAULT '',
           personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik',
           logs JSONB DEFAULT '[]',
           listenedto INTEGER DEFAULT 0,
@@ -902,7 +902,7 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
     try {
       const { data: result } = await supabase
         .from('frienddb')
-        .select('custominstruction, customInstruction, personality, goals, listenedto')
+        .select('custominstruction, customInstruction:custominstruction, personality, goals, listenedto')
         .eq('uid', uid)
         .single();
 
@@ -1177,7 +1177,7 @@ app.post("/webhook", webhookLimiter, [
 
       const { data: selectData, error: selectError } = await supabase
         .from('frienddb')
-        .select('logs, word_counts, time_distribution, total_words, analytics, listenedto, custominstruction, customInstruction, personality, goals')
+        .select('logs, word_counts, time_distribution, total_words, analytics, listenedto, custominstruction, customInstruction:custominstruction, personality, goals')
         .eq('uid', uid)
         .single();
 

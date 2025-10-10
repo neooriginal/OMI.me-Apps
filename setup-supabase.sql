@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS frienddb (
     uid TEXT UNIQUE NOT NULL,
     cooldown INTEGER DEFAULT 0,
     responsepercentage INTEGER DEFAULT 10,
-    customInstruction TEXT DEFAULT '',
+    custominstruction TEXT DEFAULT '',
     personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik',
     logs JSONB DEFAULT '[]',
     listenedto INTEGER DEFAULT 0,
