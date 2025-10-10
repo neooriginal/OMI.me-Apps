@@ -884,10 +884,11 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
   let listenedTo = null;
 
   if (userContext && typeof userContext === 'object') {
+    console.log(userContext.toString());
+    
     if (typeof userContext.customInstruction === 'string') {
       customInstruction = userContext.customInstruction;
       console.log("[Friend] Using provided custom instruction");
-      
     }
     if (typeof userContext.personality === 'string' && userContext.personality.trim()) {
       personality = userContext.personality;
