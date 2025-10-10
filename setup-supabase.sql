@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS frienddb (
     customInstruction TEXT DEFAULT '',
     personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik',
     logs JSONB DEFAULT '[]',
-    listenedTo INTEGER DEFAULT 0,
+    listenedto INTEGER DEFAULT 0,
     rating INTEGER DEFAULT 100,
     goals JSONB DEFAULT '[]',
     analytics JSONB DEFAULT '{}',

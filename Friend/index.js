@@ -535,7 +535,7 @@ let cooldownTimeCache = [];
           customInstruction TEXT DEFAULT '',
           personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik',
           logs JSONB DEFAULT '[]',
-          listenedTo INTEGER DEFAULT 0,
+          listenedto INTEGER DEFAULT 0,
           rating INTEGER DEFAULT 100,
           goals JSONB DEFAULT '[]',
           analytics JSONB DEFAULT '{}',
@@ -902,7 +902,7 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
     try {
       const { data: result } = await supabase
         .from('frienddb')
-        .select('custominstruction, customInstruction, personality, goals, listenedto, listenedTo')
+        .select('custominstruction, customInstruction, personality, goals, listenedto')
         .eq('uid', uid)
         .single();
 
@@ -1177,7 +1177,7 @@ app.post("/webhook", webhookLimiter, [
 
       const { data: selectData, error: selectError } = await supabase
         .from('frienddb')
-        .select('logs, word_counts, time_distribution, total_words, analytics, listenedto, listenedTo, custominstruction, customInstruction, personality, goals')
+        .select('logs, word_counts, time_distribution, total_words, analytics, listenedto, custominstruction, customInstruction, personality, goals')
         .eq('uid', uid)
         .single();
 
@@ -1200,12 +1200,12 @@ app.post("/webhook", webhookLimiter, [
           goals: []
         };
 
-        const { error: insertError } = await supabase
+        const { error: upsertInitError } = await supabase
           .from('frienddb')
-          .insert([rowData]);
+          .upsert([rowData], { onConflict: 'uid' });
 
-        if (insertError) {
-          console.error('Error initializing analytics row:', insertError);
+        if (upsertInitError && upsertInitError.code !== '23505') {
+          console.error('Error initializing analytics row:', upsertInitError);
         }
       }
 
@@ -1317,7 +1317,7 @@ app.get("/analytics", apiLimiter, [
   try {
     const { data: rows } = await supabase
       .from('frienddb')
-      .select('logs, rating, listenedTo, word_counts, time_distribution, total_words')
+      .select('logs, rating, listenedto, word_counts, time_distribution, total_words')
       .eq('uid', uid)
       .single();
 
@@ -1341,7 +1341,7 @@ app.get("/analytics", apiLimiter, [
 
     const logs = rows.logs || [];
     const rating = rows.rating || 100;
-    const listenedTo = rows.listenedTo || 0;
+    const listenedTo = Number(rows.listenedto ?? rows.listenedTo ?? 0);
     const wordCounts = rows.word_counts || {};
     const timeDistribution = rows.time_distribution || { morning: 0, afternoon: 0, evening: 0, night: 0 };
     const totalWords = rows.total_words || 0;
