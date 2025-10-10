@@ -1007,6 +1007,8 @@ async function createNotificationPrompt(messages, uid, probabilityToRespond = 50
     User's Personality Traits (less priority then custom instruction): ${personality}
     User's Goals: ${goals}
 
+    keep answers short and try to interpret what was said as the transcript may be incorrect
+
     Based on the conversation below, provide a personalized response that reflects your understanding of the user and maintains the instructions and personality traits provided.
 
     Current conversation:
