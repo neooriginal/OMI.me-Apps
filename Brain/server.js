@@ -806,7 +806,7 @@ app.post('/api/memory-graph', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/api/process-text', requireAuth, validateTextInput, async (req, res) => {
+app.post('/api/process-text', validateTextInput, async (req, res) => {
     try {
         const { transcript_segments } = req.body;
         const uid = req.uid;
