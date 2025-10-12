@@ -445,6 +445,17 @@ function validateUid(req, res, next) {
     next();
 }
 
+function resolveUid(req) {
+    if (req.session?.userId) {
+        return req.session.userId;
+    }
+    const rawUid = req.body?.uid || req.query?.uid;
+    if (typeof rawUid === 'string' && rawUid.length >= 3 && rawUid.length <= 50) {
+        return rawUid.replace(/[^a-zA-Z0-9-_]/g, '');
+    }
+    return null;
+}
+
 function validateTextInput(req, res, next) {
     const { message, transcript_segments } = req.body;
 
@@ -809,7 +820,12 @@ app.post('/api/memory-graph', requireAuth, async (req, res) => {
 app.post('/api/process-text', validateTextInput, async (req, res) => {
     try {
         const { transcript_segments } = req.body;
-        const uid = req.uid;
+        const uid = resolveUid(req);
+
+        if (!uid) {
+            return res.status(401).json({ error: 'Unauthorized: missing or invalid user context' });
+        }
+        req.uid = uid;
 
         if (!transcript_segments || !Array.isArray(transcript_segments)) {
             return res.status(400).json({ error: 'Transcript segments are required' });
@@ -817,8 +833,8 @@ app.post('/api/process-text', validateTextInput, async (req, res) => {
 
         let text = '';
         for (const segment of transcript_segments) {
-            if (segment.speaker && segment.text) {
-                text += segment.speaker + ': ' + segment.text + '\n';
+            if (segment && segment.speaker && segment.text) {
+                text += `${segment.speaker}: ${segment.text}\n`;
             }
         }
 
@@ -830,9 +846,38 @@ app.post('/api/process-text', validateTextInput, async (req, res) => {
         const existingMemory = await loadMemoryGraph(uid);
 
         const processedData = await processTextWithGPT(text, existingMemory);
-        res.json(processedData);
+
+        const entities = Array.isArray(processedData.entities) ? processedData.entities : [];
+        const relationships = Array.isArray(processedData.relationships) ? processedData.relationships : [];
+
+        const persistPayload = {
+            entities: entities.map(entity => ({
+                id: entity.id,
+                type: entity.type,
+                name: entity.name,
+                connections: entity.connections ?? 0
+            })),
+            relationships: relationships.map(rel => ({
+                source: rel.source,
+                target: rel.target,
+                action: rel.action
+            }))
+        };
+
+        let saveResult = { nodesUpserted: 0, relationshipsInserted: 0 };
+
+        if (persistPayload.entities.length > 0 || persistPayload.relationships.length > 0) {
+            saveResult = await saveMemoryGraph(uid, persistPayload);
+        }
+
+        console.info(`Processed text for uid=${uid}: ${saveResult.nodesUpserted} nodes upserted, ${saveResult.relationshipsInserted} relationships inserted.`);
+
+        res.json({
+            ...processedData,
+            saveResult
+        });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error processing text:', error);
         res.status(500).json({ error: 'Error processing text' });
     }
 });

@@ -940,28 +940,46 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (response.ok) {
                     const processed = await response.json();
-                    const processedData = {
-                        nodes: processed.entities.map(e => ({ id: e.id, type: e.type, name: e.name, connections: e.connections || 0 })),
-                        relationships: processed.relationships.map(r => ({ source: r.source, target: r.target, action: r.action }))
-                    };
-                    const encryptedPayload = {
-                        entities: await Promise.all(processed.entities.map(async e => ({
-                            id: e.id,
-                            type: await encryptText(e.type),
-                            name: await encryptText(e.name),
-                            connections: e.connections || 0
-                        }))),
-                        relationships: await Promise.all(processed.relationships.map(async r => ({
-                            source: r.source,
-                            target: r.target,
-                            action: await encryptText(r.action)
-                        })))
-                    };
-                    await apiCall('/api/memory-graph', {
-                        method: 'POST',
-                        body: JSON.stringify(encryptedPayload)
-                    });
-                    
+                    const entities = Array.isArray(processed.entities) ? processed.entities : [];
+                    const relationships = Array.isArray(processed.relationships) ? processed.relationships : [];
+
+                    let saveResult = processed.saveResult;
+
+                    // Backwards compatibility: if server didn't persist, fall back to client-side persistence
+                    if (!saveResult) {
+                        const encryptedPayload = {
+                            entities: await Promise.all(entities.map(async e => ({
+                                id: e.id,
+                                type: await encryptText(e.type),
+                                name: await encryptText(e.name),
+                                connections: e.connections || 0
+                            }))),
+                            relationships: await Promise.all(relationships.map(async r => ({
+                                source: r.source,
+                                target: r.target,
+                                action: await encryptText(r.action)
+                            })))
+                        };
+
+                        const persistResponse = await apiCall('/api/memory-graph', {
+                            method: 'POST',
+                            body: JSON.stringify(encryptedPayload)
+                        });
+
+                        if (!persistResponse || !persistResponse.ok) {
+                            throw new Error('Failed to persist memory graph');
+                        }
+
+                        const persistResult = await persistResponse.json();
+                        saveResult = {
+                            nodesUpserted: persistResult?.nodesUpserted ?? entities.length,
+                            relationshipsInserted: persistResult?.relationshipsInserted ?? relationships.length,
+                            persistedBy: 'client'
+                        };
+                    } else {
+                        saveResult.persistedBy = 'server';
+                    }
+
                     // After processing, reload the complete memory graph to show all nodes
                     await loadMemoryGraph();
 
@@ -972,7 +990,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             Text processed successfully
                         </div>
                         <div class="stats">
-                            Added ${processedData.nodes.length} nodes and ${processedData.relationships.length} connections to your memory graph
+                            Added ${saveResult.nodesUpserted ?? entities.length} nodes and ${saveResult.relationshipsInserted ?? relationships.length} connections to your memory graph
+                            <div class="persist-info">Persisted by ${saveResult.persistedBy === 'server' ? 'server' : 'client fallback'}</div>
                         </div>
                     `;
                 }
