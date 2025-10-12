@@ -278,7 +278,7 @@ html {
     background-attachment: local, local;
 }
 
-.chat-message {
+.message {
     padding: 16px 20px;
     border-radius: 16px;
     font-size: 14px;
@@ -288,10 +288,11 @@ html {
     word-break: break-word;
     position: relative;
     backdrop-filter: blur(5px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    color: var(--color-text);
 }
 
+.message.user,
 .user-message {
     background: linear-gradient(135deg, rgba(0, 255, 170, 0.15), rgba(0, 255, 170, 0.08));
     border: 1px solid rgba(0, 255, 170, 0.3);
@@ -301,6 +302,7 @@ html {
     color: var(--color-text);
 }
 
+.message.user::after,
 .user-message::after {
     content: '';
     position: absolute;
@@ -314,6 +316,7 @@ html {
     border-bottom: 6px solid transparent;
 }
 
+.message.ai,
 .ai-message {
     background: linear-gradient(135deg, rgba(255, 20, 147, 0.12), rgba(255, 20, 147, 0.06));
     border: 1px solid rgba(255, 20, 147, 0.25);
@@ -323,6 +326,7 @@ html {
     color: var(--color-text);
 }
 
+.message.ai::after,
 .ai-message::after {
     content: '';
     position: absolute;
@@ -334,6 +338,20 @@ html {
     border-right: 8px solid rgba(255, 20, 147, 0.12);
     border-top: 6px solid transparent;
     border-bottom: 6px solid transparent;
+}
+
+.message.system {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin: 0 auto;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.message.error {
+    background: linear-gradient(135deg, rgba(255, 68, 68, 0.18), rgba(255, 68, 68, 0.08));
+    border: 1px solid rgba(255, 68, 68, 0.4);
+    color: #ff6b6b;
+    margin-right: auto;
 }
 
 /* Chat Input Area */
@@ -384,6 +402,12 @@ html {
 
 #chat-input::-webkit-scrollbar {
     display: none;
+}
+
+#chat-input::placeholder,
+#search-input::placeholder,
+#text-upload::placeholder {
+    color: rgba(255, 255, 255, 0.45);
 }
 
 #chat-input:focus,
@@ -931,6 +955,12 @@ html {
     margin-top: 8px;
     color: rgba(255, 255, 255, 0.7);
     font-size: 13px;
+}
+
+.persist-info {
+    margin-top: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.55);
 }
 
 /* Error states */
