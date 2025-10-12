@@ -448,12 +448,12 @@ function validateUid(req, res, next) {
 function validateTextInput(req, res, next) {
     const { message, transcript_segments } = req.body;
 
-    if (message && (typeof message !== 'string' || message.length > 5000)) {
-        return res.status(400).json({ error: 'Invalid message format or too long' });
+    if (message && (typeof message !== 'string')) {
+        return res.status(400).json({ error: 'Invalid message format' });
     }
 
-    if (transcript_segments && (!Array.isArray(transcript_segments) || transcript_segments.length > 100)) {
-        return res.status(400).json({ error: 'Invalid transcript format or too many segments' });
+    if (transcript_segments && (!Array.isArray(transcript_segments))) {
+        return res.status(400).json({ error: 'Invalid transcript format' });
     }
 
     next();
