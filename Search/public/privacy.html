@@ -16,31 +16,42 @@
 
     <section class="stack">
       <p>
-        omi search is an independent community integration and is <strong>not</strong> an official product from omi or
-        omi labs. use it at your own discretion and review this policy carefully before enabling the webhook.
+        omi search is an independent community integration and is <strong>not</strong> an official omi product. you are solely responsible for deciding whether it meets your requirements. by enabling the webhook you agree that you assume the entire risk of using this service.
       </p>
 
       <p>
-        the integration receives transcript segments from your omi device, buffers them temporarily to detect useful
-        topics, and only forwards minimal excerpts to the brave search api when a query is triggered. transcripts are
-        not permanently stored unless they are attached to a search record in your supabase project.
+        how data flows:
       </p>
-
       <ul>
-        <li>conversation snippets tied to search results are saved under your uid inside the <code>search_queries</code> table.</li>
-        <li>you can delete individual searches from the dashboard or remove the app to stop further processing.</li>
-        <li>cadence controls let you throttle how often new searches run.</li>
-        <li>only the generated search text is sent to brave—no full transcripts or personal identifiers are shared.</li>
+        <li>transcript segments arrive from your omi device/webhook and are buffered in memory for short-lived analysis windows.</li>
+        <li>conversation snippets are only persisted if they are stored alongside a search suggestion inside your own <code>search_queries</code> table.</li>
+        <li>queries sent to the brave api include the generated search text only—no raw transcripts, personal identifiers, or authentication tokens are forwarded.</li>
+        <li>all persistence lives inside your supabase instance under your control; disabling or deleting the app stops further collection.</li>
       </ul>
 
       <p>
-        this software is provided “as is” without warranties of any kind. there is no guarantee of accuracy, uptime,
-        security, or ongoing maintenance. you are solely responsible for protecting your data, complying with local
-        regulations, and securing any external services you connect.
+        deletion controls:
       </p>
+      <ul>
+        <li>delete individual search rows via the dashboard actions.</li>
+        <li>use the “delete all saved search data” control to purge every stored suggestion for your uid.</li>
+        <li>removing the webhook subscription or revoking supabase access prevents new data from being captured.</li>
+      </ul>
 
       <p>
-        if you have questions or concerns, contact the app maintainer listed in the repository rather than omi support.
+        exclusions of responsibility:
+      </p>
+      <ul>
+        <li>no warranty of accuracy, completeness, timeliness, or usefulness of any generated search suggestion.</li>
+        <li>no guarantee that transcripts or metadata will remain confidential; you must secure your supabase project, browser, and network.</li>
+        <li>no assurance of uptime, error-free operation, or ongoing maintenance. outages, bugs, and data loss can occur.</li>
+        <li>no liability for compliance obligations (gdpr, hipaa, or other regulations). you are responsible for meeting any legal or contractual requirements.</li>
+        <li>no protection against misuse: do not process sensitive, medical, financial, or safety-critical information with this tool.</li>
+        <li>no responsibility for third parties: brave search, supabase, openai, or any other dependency may change behavior, pricing, or retention policies without notice.</li>
+      </ul>
+
+      <p>
+        this software is provided “as is” without warranties of any kind, express or implied. by using it you acknowledge that results are experimental, that deletion controls rely on your supabase credentials, and that you must audit integrations regularly to ensure they behave as intended.
       </p>
     </section>
   </div>

@@ -12,6 +12,7 @@ const summaryTextEl = document.getElementById('summary-text');
 const summaryLinkEl = document.getElementById('summary-link');
 const summarySourceEl = document.getElementById('summary-source');
 const summaryConfidenceEl = document.getElementById('summary-confidence');
+const wipeHistoryBtn = document.getElementById('wipe-history-btn');
 
 const uid = new URLSearchParams(window.location.search).get('uid');
 
@@ -327,6 +328,29 @@ async function loadHistory() {
   updateSummaryBanner(searches[0] || null);
 }
 
+async function wipeHistory() {
+  if (!wipeHistoryBtn) return;
+
+  const confirmed = window.confirm(
+    'Delete all saved search suggestions for this UID? This action cannot be undone.'
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  wipeHistoryBtn.disabled = true;
+  try {
+    await apiDelete('/api/history');
+    showToast('All saved search data deleted.');
+    await loadHistory();
+  } catch (error) {
+    console.error('[dashboard] wipe history failed', error);
+    showToast('Failed to delete saved data.');
+  } finally {
+    wipeHistoryBtn.disabled = false;
+  }
+}
+
 async function loadSettings() {
   const settings = await apiGet('/api/settings', {
     cooldown_seconds: 120,
@@ -354,6 +378,9 @@ async function saveSettings(event) {
 
 settingsForm.addEventListener('submit', saveSettings);
 refreshBtn.addEventListener('click', loadHistory);
+if (wipeHistoryBtn) {
+  wipeHistoryBtn.addEventListener('click', wipeHistory);
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([loadSettings(), loadHistory()]);

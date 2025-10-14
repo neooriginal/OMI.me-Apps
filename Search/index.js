@@ -941,6 +941,26 @@ app.get('/api/history', apiLimiter, requireUid, [
   }
 });
 
+app.delete('/api/history', apiLimiter, requireUid, async (req, res) => {
+  if (!supabaseConfigured) {
+    return res.status(503).json({ error: 'Supabase not configured.' });
+  }
+  try {
+    const { error } = await supabase
+      .from('search_queries')
+      .delete()
+      .eq('uid', req.uid);
+
+    if (error) {
+      throw error;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Search] Failed to delete history for uid:', err.message);
+    res.status(500).json({ error: 'Failed to delete history.' });
+  }
+});
+
 app.delete('/api/history/:id', apiLimiter, requireUid, async (req, res) => {
   if (!supabaseConfigured) {
     return res.status(503).json({ error: 'Supabase not configured.' });
