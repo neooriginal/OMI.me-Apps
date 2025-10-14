@@ -43,7 +43,7 @@ Listens to ongoing conversations and proactively surfaces timely web results wit
 - Executes Brave Search queries and stores results with transcript excerpts
 - Provides a Google-inspired UI for reviewing recent findings and tuning cadence
 
-![Search App Interface](https://github.com/user-attachments/assets/ad0a850a-e83e-46b9-8073-bdb6b143ef9a)
+![Search App Interface](https://github.com/user-attachments/assets/b6a83ce8-6911-4ff1-b8ec-de733b91b746)
 
 
 ### 🎯 **Jarvis** - Your AI Assistant
