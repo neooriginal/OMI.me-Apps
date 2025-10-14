@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>omi search</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script defer src="/static/js/dashboard.js"></script>
+</head>
+<body>
+  <header class="search-header">
+    <div class="header-brand">
+      <span class="brand-icon">🔍</span>
+      <span class="brand-text">omi search</span>
+    </div>
+    <div class="header-actions">
+      <div class="header-searchbox">
+        <input type="text" class="search-box" placeholder="omi keeps an eye on the web so you don't have to" disabled>
+        <span class="pulse-indicator" aria-hidden="true"></span>
+      </div>
+      <div class="header-links">
+        <button class="btn ghost" id="refresh-btn" type="button">refresh</button>
+        <a class="header-link" href="/privacy" target="_blank" rel="noopener noreferrer">privacy</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="search-layout">
+    <section class="results-panel">
+      <h1 class="panel-title">recent web findings</h1>
+      <p class="panel-description">
+        as omi listens to your conversations, it suggests helpful searches and stores highlights here.
+      </p>
+
+      <div id="history-empty" class="results-empty hidden">
+        <div class="empty-illustration">🌐</div>
+        <h2>no searches yet</h2>
+        <p>once omi spots something worth looking up, the results will appear in this list.</p>
+      </div>
+
+      <ul id="history-list" class="results-list"></ul>
+    </section>
+
+    <aside class="settings-panel">
+      <section class="settings-card">
+        <h2>search cadence</h2>
+        <p class="settings-description">
+          control how frequently omi suggests new searches from your live transcript.
+        </p>
+        <form id="settings-form" class="settings-form">
+          <label for="cooldown-input">minimum seconds between suggestions</label>
+          <input type="number" id="cooldown-input" min="30" max="900" step="10" required>
+
+          <label for="sentence-input">minimum user sentences before checking</label>
+          <input type="number" id="sentence-input" min="1" max="10" required>
+
+          <button type="submit" class="btn primary">save settings</button>
+        </form>
+      </section>
+    </aside>
+  </main>
+
+  <template id="history-item-template">
+    <li class="result-card">
+      <div class="result-meta">
+        <span class="result-url"></span>
+        <span class="result-timestamp"></span>
+      </div>
+      <a class="result-title" href="#" target="_blank" rel="noopener noreferrer"></a>
+      <p class="result-snippet"></p>
+      <details class="result-details">
+        <summary>conversation excerpt</summary>
+        <pre></pre>
+      </details>
+      <details class="result-details">
+        <summary>full result set</summary>
+        <ul class="result-items"></ul>
+      </details>
+      <div class="result-actions">
+        <p class="result-reason"></p>
+        <button class="btn danger delete-btn" type="button">delete</button>
+      </div>
+    </li>
+  </template>
+
+  <div id="toast" class="toast hidden"></div>
+</body>
+</html>

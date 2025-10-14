@@ -1,0 +1,32 @@
+{
+  "name": "omi-search",
+  "version": "1.0.0",
+  "description": "Realtime transcript driven search companion for OMI",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "omi",
+    "search",
+    "integration"
+  ],
+  "author": "Neo (github.com/neooriginal)",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
+    "axios": "^1.12.2",
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.1",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "openai": "^4.104.0",
+    "path": "^0.12.7",
+    "supabase": "^2.51.0"
+  }
+}

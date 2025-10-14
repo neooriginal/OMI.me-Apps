@@ -1,6 +1,6 @@
 # OMI Apps Collection 🧠🤖✨
 
-**Three powerful AI applications designed to enhance your digital life** - all powered by modern cloud infrastructure for reliable performance.
+**Four powerful AI applications designed to enhance your digital life** - all powered by modern cloud infrastructure for reliable performance.
 
 Originally created for [OMI.me](https://omi.me)
 
@@ -32,6 +32,17 @@ An intelligent conversation partner that remembers your interactions and provide
 
 ![Friend App Interface](https://github.com/user-attachments/assets/ba3846fd-a6b0-4c0a-855d-97195b28adfe)
 
+### 🔎 **Search** - Real-Time Web Scout
+
+Listens to ongoing conversations and proactively surfaces timely web results without interrupting the flow.
+
+**What it does:**
+
+- Buffers live transcript segments and detects research-worthy topics
+- Uses GPT-5-nano to decide when a search is helpful
+- Executes Brave Search queries and stores results with transcript excerpts
+- Provides a Google-inspired UI for reviewing recent findings and tuning cadence
+
 ### 🎯 **Jarvis** - Your AI Assistant
 
 A focused assistant that responds to specific triggers and helps with targeted tasks.
@@ -50,7 +61,8 @@ A focused assistant that responds to specific triggers and helps with targeted t
 **Prerequisites:** You'll need:
 
 - A [Supabase](https://supabase.com) account (free)
-- An [OpenRouter](https://openrouter.ai) API key (for AI features)
+- An [OpenRouter](https://openrouter.ai) **or** OpenAI API key (for AI features)
+- A [Brave Search API key](https://brave.com/search/api/) (for the Search app)
 - Docker installed on your computer
 
 > **Note:** This setup uses pre-built Docker images from GitHub Container Registry for fastest deployment.
@@ -85,6 +97,8 @@ Edit the `.env` file with your information:
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
+OPENAI_API_KEY=your_openai_api_key
+BRAVE_API_KEY=your_brave_api_key
 SESSION_SECRET=any_random_string_here
 FRONTEND_URL_BRAIN=http://localhost:3000
 ```
@@ -100,6 +114,7 @@ docker-compose up -d
 - **Brain:** http://localhost:3000
 - **Friend:** http://localhost:5000
 - **Jarvis:** http://localhost:8000
+- **Search:** http://localhost:5100
 
 ---
 

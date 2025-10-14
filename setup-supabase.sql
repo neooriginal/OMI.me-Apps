@@ -67,6 +67,26 @@ CREATE TABLE IF NOT EXISTS frienddb (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Search App Tables
+CREATE TABLE IF NOT EXISTS search_queries (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    uid TEXT NOT NULL,
+    session_id TEXT,
+    query TEXT NOT NULL,
+    reasoning TEXT,
+    results JSONB DEFAULT '[]',
+    transcript_excerpt TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS search_settings (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    uid TEXT UNIQUE NOT NULL,
+    cooldown_seconds INTEGER DEFAULT 120,
+    min_sentences INTEGER DEFAULT 3,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Jarvis App Table
 CREATE TABLE IF NOT EXISTS jarvis_sessions (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -85,6 +105,8 @@ CREATE INDEX IF NOT EXISTS idx_memory_relationships_uid ON memory_relationships(
 CREATE INDEX IF NOT EXISTS idx_memory_relationships_source ON memory_relationships(source);
 CREATE INDEX IF NOT EXISTS idx_memory_relationships_target ON memory_relationships(target);
 CREATE INDEX IF NOT EXISTS idx_frienddb_uid ON frienddb(uid);
+CREATE INDEX IF NOT EXISTS idx_search_queries_uid ON search_queries(uid);
+CREATE INDEX IF NOT EXISTS idx_search_queries_created_at ON search_queries(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jarvis_sessions_session_id ON jarvis_sessions(session_id);
 CREATE INDEX IF NOT EXISTS idx_jarvis_sessions_last_activity ON jarvis_sessions(last_activity);
 
@@ -93,6 +115,8 @@ ALTER TABLE brain_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_nodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_relationships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE frienddb ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_queries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jarvis_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Create basic policies (you may want to customize these)
@@ -100,6 +124,8 @@ CREATE POLICY "Users can access their own data" ON brain_users FOR ALL USING (tr
 CREATE POLICY "Users can access their own memory nodes" ON memory_nodes FOR ALL USING (true);
 CREATE POLICY "Users can access their own relationships" ON memory_relationships FOR ALL USING (true);
 CREATE POLICY "Users can access their own friend data" ON frienddb FOR ALL USING (true);
+CREATE POLICY "Users can access their own search queries" ON search_queries FOR ALL USING (true);
+CREATE POLICY "Users can manage their search settings" ON search_settings FOR ALL USING (true);
 CREATE POLICY "Users can access their own sessions" ON jarvis_sessions FOR ALL USING (true);
 
 SELECT 'All OMI tables and functions created successfully!' as result; 

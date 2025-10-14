@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>omi search · enter uid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script defer src="/static/js/enter-uid.js"></script>
+</head>
+<body class="centered">
+  <div class="card">
+    <header class="card-header">
+      <span class="logo">🔎</span>
+      <h1>omi search</h1>
+      <p class="subtitle">connect your account</p>
+    </header>
+
+    <form id="uid-form" class="stack">
+      <label for="uid-input">your uid</label>
+      <input id="uid-input" name="uid" type="text" placeholder="e.g. 12345" required minlength="3" maxlength="50">
+      <button type="submit" class="btn primary">continue</button>
+    </form>
+
+    <footer class="card-footer">
+      <p>find your uid in the omi app settings.</p>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</body>
+</html>

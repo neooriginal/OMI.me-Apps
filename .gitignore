@@ -4,7 +4,10 @@
 Brain/.env
 Friend/.env
 Jarvis/.env
+Search/.env
 .env
 .DS_Store
 .do
 .claude
+/Search/node_modules
+search-tester.js

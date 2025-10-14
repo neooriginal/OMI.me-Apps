@@ -45,6 +45,28 @@ services:
       retries: 3
       start_period: 40s
 
+  search:
+    image: ghcr.io/neooriginal/omi.me-apps/search:latest
+    container_name: omi-search
+    ports:
+      - "5100:5100"
+    environment:
+      - NODE_ENV=production
+      - PORT=5100
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+    restart: unless-stopped
+    networks:
+      - omi-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   jarvis:
     image: ghcr.io/neooriginal/omi.me-apps/jarvis:latest
     container_name: omi-jarvis

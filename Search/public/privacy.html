@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>omi search · privacy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="centered">
+  <div class="card">
+    <header class="card-header">
+      <span class="logo">🔒</span>
+      <h1>privacy & data usage</h1>
+      <p class="subtitle">omi search (third-party app)</p>
+    </header>
+
+    <section class="stack">
+      <p>
+        omi search is an independent community integration and is <strong>not</strong> an official product from omi or
+        omi labs. use it at your own discretion and review this policy carefully before enabling the webhook.
+      </p>
+
+      <p>
+        the integration receives transcript segments from your omi device, buffers them temporarily to detect useful
+        topics, and only forwards minimal excerpts to the brave search api when a query is triggered. transcripts are
+        not permanently stored unless they are attached to a search record in your supabase project.
+      </p>
+
+      <ul>
+        <li>conversation snippets tied to search results are saved under your uid inside the <code>search_queries</code> table.</li>
+        <li>you can delete individual searches from the dashboard or remove the app to stop further processing.</li>
+        <li>cadence controls let you throttle how often new searches run.</li>
+        <li>only the generated search text is sent to brave—no full transcripts or personal identifiers are shared.</li>
+      </ul>
+
+      <p>
+        this software is provided “as is” without warranties of any kind. there is no guarantee of accuracy, uptime,
+        security, or ongoing maintenance. you are solely responsible for protecting your data, complying with local
+        regulations, and securing any external services you connect.
+      </p>
+
+      <p>
+        if you have questions or concerns, contact the app maintainer listed in the repository rather than omi support.
+      </p>
+    </section>
+  </div>
+</body>
+</html>
