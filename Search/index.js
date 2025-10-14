@@ -24,25 +24,18 @@ const supabase = supabaseConfigured
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
   : null;
 
-const openAiApiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
-const openAiBaseUrl = process.env.OPENAI_BASE_URL || (process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : undefined);
-const openAiHeaders = process.env.OPENROUTER_API_KEY
-  ? {
-      'HTTP-Referer': process.env.OPENROUTER_REFERRER || 'https://omi.me',
-      'X-Title': process.env.OPENROUTER_APP_TITLE || 'OMI Search Integration'
-    }
-  : undefined;
+const openAiApiKey = process.env.OPENAI_API_KEY;
+const openAiBaseUrl = process.env.OPENAI_BASE_URL || undefined;
 
 const openai = openAiApiKey
   ? new OpenAI({
       apiKey: openAiApiKey,
-      baseURL: openAiBaseUrl,
-      defaultHeaders: openAiHeaders
+      baseURL: openAiBaseUrl
     })
   : null;
 
 if (!openai) {
-  console.warn('[Search] No OpenAI/OpenRouter API key detected. Topic detection is disabled.');
+  console.warn('[Search] No OpenAI API key detected. Topic detection is disabled.');
 }
 
 const braveApiKey = process.env.BRAVE_API_KEY;
