@@ -43,6 +43,9 @@ Listens to ongoing conversations and proactively surfaces timely web results wit
 - Executes Brave Search queries and stores results with transcript excerpts
 - Provides a Google-inspired UI for reviewing recent findings and tuning cadence
 
+![Search App Interface](https://github.com/user-attachments/assets/ad0a850a-e83e-46b9-8073-bdb6b143ef9a)
+
+
 ### 🎯 **Jarvis** - Your AI Assistant
 
 A focused assistant that responds to specific triggers and helps with targeted tasks.
