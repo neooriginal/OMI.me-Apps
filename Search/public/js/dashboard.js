@@ -58,8 +58,8 @@ async function apiDelete(path) {
   return response.json();
 }
 
-function extractResultsPayload(rawResults) {
-  if (!rawResults) {
+function extractResultsPayload(search) {
+  if (!search) {
     return {
       items: [],
       aiSummary: null,
@@ -68,50 +68,76 @@ function extractResultsPayload(rawResults) {
     };
   }
 
+  const rawResults = search.results;
+  let items = [];
+
   if (Array.isArray(rawResults)) {
-    const aiIndexFromFlag = rawResults.findIndex(item => item?.ai_is_pick);
-    return {
-      items: rawResults,
-      aiSummary: null,
-      aiBestIndex: aiIndexFromFlag >= 0 ? aiIndexFromFlag : null,
-      aiConfidence: null
-    };
+    items = rawResults;
+  } else if (rawResults && typeof rawResults === 'object') {
+    if (Array.isArray(rawResults.items)) {
+      items = rawResults.items;
+    } else if (Array.isArray(rawResults.results)) {
+      items = rawResults.results;
+    }
   }
 
-  if (typeof rawResults === 'object') {
-    const items = Array.isArray(rawResults.items)
-      ? rawResults.items
-      : Array.isArray(rawResults.results)
-        ? rawResults.results
-        : [];
-    let aiBestIndex = Number.isInteger(rawResults.ai_best_index) ? rawResults.ai_best_index : null;
+  if (!Array.isArray(items)) {
+    items = [];
+  }
 
-    if (aiBestIndex === null) {
-      const flaggedIndex = items.findIndex(item => item?.ai_is_pick);
-      if (flaggedIndex >= 0) {
-        aiBestIndex = flaggedIndex;
-      }
+  let aiBestIndex = Number.isInteger(search.ai_best_index) ? search.ai_best_index : null;
+  if (aiBestIndex === null && rawResults && typeof rawResults === 'object') {
+    if (Number.isInteger(rawResults.ai_best_index)) {
+      aiBestIndex = rawResults.ai_best_index;
     }
+  }
+  if (aiBestIndex === null) {
+    const flaggedIndex = items.findIndex(item => item?.ai_is_pick);
+    if (flaggedIndex >= 0) {
+      aiBestIndex = flaggedIndex;
+    }
+  }
+  if (aiBestIndex !== null) {
+    if (aiBestIndex < 0 || aiBestIndex >= items.length) {
+      aiBestIndex = items.length ? 0 : null;
+    }
+  } else if (items.length > 0) {
+    aiBestIndex = 0;
+  }
 
-    return {
-      items,
-      aiSummary:
-        typeof rawResults.ai_summary === 'string' && rawResults.ai_summary.trim().length
-          ? rawResults.ai_summary.trim()
-          : null,
-      aiBestIndex,
-      aiConfidence:
-        typeof rawResults.ai_confidence === 'number' && !Number.isNaN(rawResults.ai_confidence)
-          ? Math.max(0, Math.min(1, rawResults.ai_confidence))
-          : null
-    };
+  let aiSummary =
+    typeof search.ai_summary === 'string' && search.ai_summary.trim().length
+      ? search.ai_summary.trim()
+      : null;
+
+  if (!aiSummary && rawResults && typeof rawResults === 'object') {
+    if (typeof rawResults.ai_summary === 'string' && rawResults.ai_summary.trim().length) {
+      aiSummary = rawResults.ai_summary.trim();
+    } else if (typeof rawResults.summary === 'string' && rawResults.summary.trim().length) {
+      aiSummary = rawResults.summary.trim();
+    }
+  }
+
+  let aiConfidence =
+    typeof search.ai_confidence === 'number' && !Number.isNaN(search.ai_confidence)
+      ? Math.max(0, Math.min(1, search.ai_confidence))
+      : null;
+
+  if (
+    aiConfidence === null &&
+    rawResults &&
+    typeof rawResults === 'object' &&
+    typeof rawResults.ai_confidence === 'number' &&
+    !Number.isNaN(rawResults.ai_confidence)
+  ) {
+    aiConfidence = Math.max(0, Math.min(1, rawResults.ai_confidence));
   }
 
   return {
-    items: [],
-    aiSummary: null,
-    aiBestIndex: null,
-    aiConfidence: null
+    items,
+    aiSummary,
+    aiBestIndex,
+    aiConfidence
   };
 }
 
@@ -142,7 +168,7 @@ function updateSummaryBanner(latestSearch) {
     return;
   }
 
-  const { items, aiSummary, aiBestIndex, aiConfidence } = extractResultsPayload(latestSearch.results);
+  const { items, aiSummary, aiBestIndex, aiConfidence } = extractResultsPayload(latestSearch);
   const highlightedIndex =
     aiBestIndex !== null && aiBestIndex >= 0 && aiBestIndex < items.length ? aiBestIndex : 0;
   const highlighted = items[highlightedIndex] || null;
@@ -207,7 +233,7 @@ function renderHistory(searches) {
     const created = search.created_at ? new Date(search.created_at) : null;
     timestampEl.textContent = created ? created.toLocaleString() : 'timestamp unavailable';
 
-    const { items, aiSummary, aiBestIndex, aiConfidence } = extractResultsPayload(search.results);
+    const { items, aiSummary, aiBestIndex, aiConfidence } = extractResultsPayload(search);
     const highlightedIndex =
       aiBestIndex !== null && aiBestIndex >= 0 && aiBestIndex < items.length ? aiBestIndex : 0;
     const primary = items[highlightedIndex] || items[0] || null;

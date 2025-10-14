@@ -778,22 +778,20 @@ async function maybeRunSearch(buffer, sessionId) {
             ? annotatedResults[aiBestIndex].description
             : null;
 
-    const storedResults = {
-      items: annotatedResults,
-      ai_summary: aiSummary,
-      ai_best_index: aiBestIndex,
-      ai_confidence:
-        typeof selection?.confidence === 'number'
-          ? Math.max(0, Math.min(1, selection.confidence))
-          : null
-    };
+    const aiConfidence =
+      typeof selection?.confidence === 'number' && !Number.isNaN(selection.confidence)
+        ? Math.max(0, Math.min(1, selection.confidence))
+        : null;
 
     const record = {
       uid: buffer.uid,
       session_id: sessionId,
       query: queryInfo.query,
       reasoning: queryInfo.focus || analysis.reason || null,
-      results: storedResults,
+      ai_summary: aiSummary,
+      ai_best_index: aiBestIndex,
+      ai_confidence: aiConfidence,
+      results: annotatedResults,
       transcript_excerpt: transcriptExcerpt
     };
 
@@ -801,9 +799,11 @@ async function maybeRunSearch(buffer, sessionId) {
     executed.push({
       query: record.query,
       focus: record.reasoning,
-      ai_summary: storedResults.ai_summary,
-      ai_best_index: storedResults.ai_best_index,
-      results: storedResults.items
+      ai_summary: record.ai_summary,
+      ai_best_index: record.ai_best_index,
+      ai_confidence: record.ai_confidence,
+      results: annotatedResults,
+      transcript_excerpt: transcriptExcerpt
     });
     lastSearchTimestamp = Date.now();
     buffer.lastSearch = lastSearchTimestamp;
@@ -925,7 +925,7 @@ app.get('/api/history', apiLimiter, requireUid, [
   try {
     const { data, error } = await supabase
       .from('search_queries')
-      .select('id, query, reasoning, results, transcript_excerpt, created_at')
+      .select('id, query, reasoning, ai_summary, ai_best_index, ai_confidence, results, transcript_excerpt, created_at')
       .eq('uid', req.uid)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -934,7 +934,25 @@ app.get('/api/history', apiLimiter, requireUid, [
       throw error;
     }
 
-    res.json({ searches: data || [] });
+    const searches = Array.isArray(data)
+      ? data.map((entry) => {
+          let resultsPayload = entry.results;
+          if (Array.isArray(resultsPayload)) {
+            resultsPayload = resultsPayload;
+          } else if (resultsPayload && typeof resultsPayload === 'object' && Array.isArray(resultsPayload.items)) {
+            resultsPayload = resultsPayload.items;
+          } else {
+            resultsPayload = [];
+          }
+
+          return {
+            ...entry,
+            results: resultsPayload
+          };
+        })
+      : [];
+
+    res.json({ searches });
   } catch (err) {
     console.error('[Search] Failed to fetch history:', err.message);
     res.status(500).json({ error: 'Failed to fetch history.' });

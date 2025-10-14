@@ -107,6 +107,12 @@ CREATE INDEX IF NOT EXISTS idx_memory_relationships_target ON memory_relationshi
 CREATE INDEX IF NOT EXISTS idx_frienddb_uid ON frienddb(uid);
 CREATE INDEX IF NOT EXISTS idx_search_queries_uid ON search_queries(uid);
 CREATE INDEX IF NOT EXISTS idx_search_queries_created_at ON search_queries(created_at DESC);
+
+ALTER TABLE search_queries
+  ADD COLUMN IF NOT EXISTS ai_summary TEXT,
+  ADD COLUMN IF NOT EXISTS ai_best_index INTEGER,
+  ADD COLUMN IF NOT EXISTS ai_confidence NUMERIC;
+
 CREATE INDEX IF NOT EXISTS idx_jarvis_sessions_session_id ON jarvis_sessions(session_id);
 CREATE INDEX IF NOT EXISTS idx_jarvis_sessions_last_activity ON jarvis_sessions(last_activity);
 
