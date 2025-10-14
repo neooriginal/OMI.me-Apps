@@ -6,6 +6,12 @@ const cooldownInput = document.getElementById('cooldown-input');
 const sentenceInput = document.getElementById('sentence-input');
 const refreshBtn = document.getElementById('refresh-btn');
 const toastEl = document.getElementById('toast');
+const summaryContainer = document.getElementById('summary-container');
+const summaryBanner = document.getElementById('summary-banner');
+const summaryTextEl = document.getElementById('summary-text');
+const summaryLinkEl = document.getElementById('summary-link');
+const summarySourceEl = document.getElementById('summary-source');
+const summaryConfidenceEl = document.getElementById('summary-confidence');
 
 const uid = new URLSearchParams(window.location.search).get('uid');
 
@@ -51,6 +57,130 @@ async function apiDelete(path) {
   return response.json();
 }
 
+function extractResultsPayload(rawResults) {
+  if (!rawResults) {
+    return {
+      items: [],
+      aiSummary: null,
+      aiBestIndex: null,
+      aiConfidence: null
+    };
+  }
+
+  if (Array.isArray(rawResults)) {
+    const aiIndexFromFlag = rawResults.findIndex(item => item?.ai_is_pick);
+    return {
+      items: rawResults,
+      aiSummary: null,
+      aiBestIndex: aiIndexFromFlag >= 0 ? aiIndexFromFlag : null,
+      aiConfidence: null
+    };
+  }
+
+  if (typeof rawResults === 'object') {
+    const items = Array.isArray(rawResults.items)
+      ? rawResults.items
+      : Array.isArray(rawResults.results)
+        ? rawResults.results
+        : [];
+    let aiBestIndex = Number.isInteger(rawResults.ai_best_index) ? rawResults.ai_best_index : null;
+
+    if (aiBestIndex === null) {
+      const flaggedIndex = items.findIndex(item => item?.ai_is_pick);
+      if (flaggedIndex >= 0) {
+        aiBestIndex = flaggedIndex;
+      }
+    }
+
+    return {
+      items,
+      aiSummary:
+        typeof rawResults.ai_summary === 'string' && rawResults.ai_summary.trim().length
+          ? rawResults.ai_summary.trim()
+          : null,
+      aiBestIndex,
+      aiConfidence:
+        typeof rawResults.ai_confidence === 'number' && !Number.isNaN(rawResults.ai_confidence)
+          ? Math.max(0, Math.min(1, rawResults.ai_confidence))
+          : null
+    };
+  }
+
+  return {
+    items: [],
+    aiSummary: null,
+    aiBestIndex: null,
+    aiConfidence: null
+  };
+}
+
+function formatConfidence(confidence) {
+  if (typeof confidence !== 'number' || Number.isNaN(confidence)) {
+    return null;
+  }
+  return `${Math.round(confidence * 100)}% confidence`;
+}
+
+function formatHostname(url) {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+function updateSummaryBanner(latestSearch) {
+  if (!summaryBanner || !summaryContainer) {
+    return;
+  }
+
+  if (!latestSearch) {
+    summaryContainer.classList.add('hidden');
+    summaryBanner.classList.add('hidden');
+    return;
+  }
+
+  const { items, aiSummary, aiBestIndex, aiConfidence } = extractResultsPayload(latestSearch.results);
+  const highlightedIndex =
+    aiBestIndex !== null && aiBestIndex >= 0 && aiBestIndex < items.length ? aiBestIndex : 0;
+  const highlighted = items[highlightedIndex] || null;
+
+  const fallbackSummary =
+    aiSummary ||
+    highlighted?.description ||
+    latestSearch.reasoning ||
+    'A fresh summary will appear here after your next search.';
+
+  summaryTextEl.textContent = fallbackSummary;
+  summaryTextEl.classList.toggle('summary-text--muted', !aiSummary && !highlighted?.description);
+
+  const linkHref = highlighted?.url || null;
+  if (linkHref) {
+    summaryLinkEl.href = linkHref;
+    summaryLinkEl.classList.remove('hidden');
+  } else {
+    summaryLinkEl.removeAttribute('href');
+    summaryLinkEl.classList.add('hidden');
+  }
+
+  const sourceLabel = formatHostname(highlighted?.url) || highlighted?.source || latestSearch.query;
+  summarySourceEl.textContent = sourceLabel ? `Source: ${sourceLabel}` : latestSearch.query || '';
+  summaryLinkEl.textContent = sourceLabel || 'open source';
+
+  const confidenceLabel = formatConfidence(aiConfidence);
+  if (confidenceLabel) {
+    summaryConfidenceEl.textContent = confidenceLabel;
+    summaryConfidenceEl.classList.remove('hidden');
+  } else {
+    summaryConfidenceEl.textContent = '';
+    summaryConfidenceEl.classList.add('hidden');
+  }
+
+  summaryContainer.classList.remove('hidden');
+  summaryBanner.classList.remove('hidden');
+}
+
 function renderHistory(searches) {
   historyList.innerHTML = '';
   if (!Array.isArray(searches) || searches.length === 0) {
@@ -62,8 +192,11 @@ function renderHistory(searches) {
   searches.forEach((search) => {
     const clone = historyTemplate.content.cloneNode(true);
     const titleEl = clone.querySelector('.result-title');
-    const urlEl = clone.querySelector('.result-url');
+    const badgeEl = clone.querySelector('.result-badge');
+    const sourceEl = clone.querySelector('.result-source');
+    const confidenceEl = clone.querySelector('.result-confidence');
     const timestampEl = clone.querySelector('.result-timestamp');
+    const summaryEl = clone.querySelector('.result-ai-summary');
     const snippetEl = clone.querySelector('.result-snippet');
     const reasonEl = clone.querySelector('.result-reason');
     const excerptPre = clone.querySelector('.result-details summary + pre') || clone.querySelector('pre');
@@ -73,30 +206,57 @@ function renderHistory(searches) {
     const created = search.created_at ? new Date(search.created_at) : null;
     timestampEl.textContent = created ? created.toLocaleString() : 'timestamp unavailable';
 
-    const results = Array.isArray(search.results) ? search.results : [];
-    const primary = results[0] ?? null;
+    const { items, aiSummary, aiBestIndex, aiConfidence } = extractResultsPayload(search.results);
+    const highlightedIndex =
+      aiBestIndex !== null && aiBestIndex >= 0 && aiBestIndex < items.length ? aiBestIndex : 0;
+    const primary = items[highlightedIndex] || items[0] || null;
 
-    if (primary && primary.url) {
+    const hostname = formatHostname(primary?.url);
+    if (primary?.url) {
       titleEl.textContent = primary.title || search.query;
       titleEl.href = primary.url;
+      titleEl.classList.remove('result-title--no-link');
 
-      try {
-        urlEl.textContent = new URL(primary.url).hostname;
-      } catch {
-        urlEl.textContent = primary.source || search.query;
-      }
+      sourceEl.textContent = hostname || primary.source || search.query;
+      sourceEl.classList.remove('hidden');
 
       snippetEl.textContent =
-        primary.description ||
+        primary?.description ||
         search.reasoning ||
         'Search captured from your recent conversation.';
     } else {
       titleEl.textContent = search.query;
       titleEl.href = '#';
       titleEl.classList.add('result-title--no-link');
-      urlEl.textContent = search.query;
+      sourceEl.textContent = search.query;
+      sourceEl.classList.add('hidden');
       snippetEl.textContent =
         search.reasoning || 'No web results stored for this suggestion.';
+    }
+
+    if (badgeEl) {
+      const isAiPick = highlightedIndex === aiBestIndex && primary;
+      badgeEl.classList.toggle('hidden', !isAiPick);
+    }
+
+    if (summaryEl) {
+      summaryEl.textContent =
+        aiSummary ||
+        primary?.description ||
+        search.reasoning ||
+        'No AI summary available for this search result.';
+      summaryEl.classList.toggle('summary-ai--muted', !aiSummary);
+    }
+
+    if (confidenceEl) {
+      const confidenceLabel = formatConfidence(aiConfidence);
+      if (confidenceLabel) {
+        confidenceEl.textContent = confidenceLabel;
+        confidenceEl.classList.remove('hidden');
+      } else {
+        confidenceEl.textContent = '';
+        confidenceEl.classList.add('hidden');
+      }
     }
 
     reasonEl.textContent = search.reasoning || 'Suggested from your recent conversation.';
@@ -106,13 +266,16 @@ function renderHistory(searches) {
 
     if (resultItems) {
       resultItems.innerHTML = '';
-      if (results.length === 0) {
+      if (items.length === 0) {
         const li = document.createElement('li');
         li.textContent = 'No web results saved.';
         resultItems.appendChild(li);
       } else {
-        results.forEach((result) => {
+        items.forEach((result, index) => {
           const li = document.createElement('li');
+          if (index === highlightedIndex) {
+            li.classList.add('result-item--pick');
+          }
           if (result.url) {
             const link = document.createElement('a');
             link.href = result.url;
@@ -121,10 +284,10 @@ function renderHistory(searches) {
             link.textContent = result.title || result.url;
             li.appendChild(link);
           } else {
-            li.textContent = result.title || result.source || search.query;
+            li.textContent = result?.title || result?.source || search.query;
           }
 
-          if (result.description) {
+          if (result?.description) {
             const desc = document.createElement('p');
             desc.textContent = result.description;
             li.appendChild(desc);
@@ -159,7 +322,9 @@ function renderHistory(searches) {
 
 async function loadHistory() {
   const data = await apiGet('/api/history', { searches: [] });
-  renderHistory(data.searches);
+  const searches = Array.isArray(data.searches) ? data.searches : [];
+  renderHistory(searches);
+  updateSummaryBanner(searches[0] || null);
 }
 
 async function loadSettings() {

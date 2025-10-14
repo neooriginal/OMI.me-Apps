@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS search_queries (
     session_id TEXT,
     query TEXT NOT NULL,
     reasoning TEXT,
-    results JSONB DEFAULT '[]',
+    results JSONB DEFAULT '{}'::jsonb,
     transcript_excerpt TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

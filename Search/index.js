@@ -449,6 +449,102 @@ async function performBraveSearch(queryText) {
   }
 }
 
+async function evaluateSearchResults({ query, focus, transcriptExcerpt, results }) {
+  if (!openai || !Array.isArray(results) || results.length === 0) {
+    return null;
+  }
+
+  const limitedResults = results.slice(0, 5);
+  const formattedResults = limitedResults
+    .map((result, index) => {
+      const title = result.title ? result.title.trim() : 'Untitled';
+      const description = result.description ? result.description.trim() : 'No description provided.';
+      const url = result.url ? result.url.trim() : 'No URL available.';
+      const source = result.source ? result.source.trim() : null;
+      const sourceLine = source ? `Source: ${source}` : '';
+      return `Result ${index}:
+Title: ${title}
+Description: ${description}
+URL: ${url}
+${sourceLine}`.trim();
+    })
+    .join('\n\n');
+
+  const contextSections = [
+    focus ? `Search intent: ${focus}` : null,
+    transcriptExcerpt ? `Conversation excerpt:\n${transcriptExcerpt}` : null,
+    query ? `Original query: ${query}` : null,
+    `Candidate results:\n${formattedResults}`
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const systemPrompt = `
+You are assisting an AI agent by selecting the single most relevant web search result and drafting a concise answer based on the provided candidates.
+Return strict JSON with the following shape:
+{
+  "best_index": number (0-based index of the chosen result),
+  "answer_summary": string (<= 80 words, actionable and specific, incorporate key facts),
+  "confidence": number (0.0-1.0, optional)
+}
+
+Rules:
+- Consider the conversation focus and query to determine relevance.
+- Prefer up-to-date, authoritative sources.
+- If information is insufficient, provide the best effort answer but avoid fabricating details.
+- Do not include any additional keys beyond those specified.
+`.trim();
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-5-nano',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: contextSections }
+      ],
+      response_format: { type: 'json_object' }
+    });
+
+    const raw = completion.choices?.[0]?.message?.content;
+    if (!raw) {
+      return null;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (parseError) {
+      console.error('[Search] Failed to parse selection JSON:', parseError.message);
+      return null;
+    }
+
+    const bestIndex = Number.isInteger(parsed?.best_index) ? parsed.best_index : null;
+    const answerSummary =
+      typeof parsed?.answer_summary === 'string' ? parsed.answer_summary.trim() : null;
+    const confidence =
+      typeof parsed?.confidence === 'number' && !Number.isNaN(parsed.confidence)
+        ? parsed.confidence
+        : null;
+
+    if (bestIndex === null) {
+      return {
+        best_index: 0,
+        answer_summary: answerSummary,
+        confidence
+      };
+    }
+
+    return {
+      best_index: bestIndex,
+      answer_summary: answerSummary,
+      confidence
+    };
+  } catch (err) {
+    console.error('[Search] Failed to evaluate search results:', err.message);
+    return null;
+  }
+}
+
 async function analyzeConversation(messages) {
   if (!openai) {
     console.warn('[Search] OpenAI client unavailable, skipping analysis.');
@@ -644,19 +740,70 @@ async function maybeRunSearch(buffer, sessionId) {
       focus: queryInfo.focus || analysis.reason
     });
     const searchResults = await performBraveSearch(queryInfo.query);
+
+    const transcriptExcerpt = buildConversationSummary(buffer.messages, 6);
+    const selection = searchResults.length
+      ? await evaluateSearchResults({
+          query: queryInfo.query,
+          focus: queryInfo.focus || analysis.reason || null,
+          transcriptExcerpt,
+          results: searchResults
+        })
+      : null;
+
+    let aiBestIndex =
+      typeof selection?.best_index === 'number' && Number.isInteger(selection.best_index)
+        ? selection.best_index
+        : null;
+
+    if (aiBestIndex !== null) {
+      if (aiBestIndex < 0 || aiBestIndex >= searchResults.length) {
+        aiBestIndex = 0;
+      }
+    } else if (searchResults.length > 0) {
+      aiBestIndex = 0;
+    }
+
+    const annotatedResults = searchResults.map((result, index) => ({
+      ...result,
+      ai_is_pick: aiBestIndex === index
+    }));
+
+    const aiSummary =
+      typeof selection?.answer_summary === 'string' && selection.answer_summary.trim().length
+        ? selection.answer_summary.trim()
+        : typeof selection?.summary === 'string' && selection.summary.trim().length
+          ? selection.summary.trim()
+          : aiBestIndex !== null && annotatedResults[aiBestIndex]?.description
+            ? annotatedResults[aiBestIndex].description
+            : null;
+
+    const storedResults = {
+      items: annotatedResults,
+      ai_summary: aiSummary,
+      ai_best_index: aiBestIndex,
+      ai_confidence:
+        typeof selection?.confidence === 'number'
+          ? Math.max(0, Math.min(1, selection.confidence))
+          : null
+    };
+
     const record = {
       uid: buffer.uid,
       session_id: sessionId,
       query: queryInfo.query,
       reasoning: queryInfo.focus || analysis.reason || null,
-      results: searchResults,
-      transcript_excerpt: buildConversationSummary(buffer.messages, 6)
+      results: storedResults,
+      transcript_excerpt: transcriptExcerpt
     };
+
     await persistSearchResult(record);
     executed.push({
       query: record.query,
       focus: record.reasoning,
-      results: searchResults
+      ai_summary: storedResults.ai_summary,
+      ai_best_index: storedResults.ai_best_index,
+      results: storedResults.items
     });
     lastSearchTimestamp = Date.now();
     buffer.lastSearch = lastSearchTimestamp;
@@ -908,28 +1055,6 @@ if (speaker === 'user') {
     console.error('[Search] Error during webhook processing:', err.message);
     return res.status(500).json({ error: 'Internal processing error.' });
   }
-});
-
-app.get('/api/searches/sample', (_req, res) => {
-  res.json({
-    searches: [
-      {
-        id: 'sample-1',
-        query: 'latest news on OMI real-time transcript integrations',
-        reasoning: 'User asked about new OMI integration updates.',
-        results: [
-          {
-            title: 'OMI announces new integration toolkit',
-            url: 'https://omi.me/blog/integration-toolkit',
-            description: 'Overview of the latest integration capabilities and developer resources.',
-            source: 'omi.me'
-          }
-        ],
-        transcript_excerpt: 'user: what are the newest omi integration features?\nother: i heard there is a new toolkit.',
-        created_at: new Date().toISOString()
-      }
-    ]
-  });
 });
 
 app.use((err, _req, res, _next) => {

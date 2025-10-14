@@ -24,6 +24,20 @@
       </div>
     </div>
   </header>
+  
+    <section class="summary-container hidden" id="summary-container">
+      <section class="header-summary hidden" id="summary-banner" aria-live="polite">
+        <div class="summary-header">
+          <h2 class="summary-heading">latest insight</h2>
+          <a class="summary-link hidden" id="summary-link" target="_blank" rel="noopener noreferrer">open source</a>
+        </div>
+        <p class="summary-text" id="summary-text">Stay tuned for your first AI summary.</p>
+        <div class="summary-meta">
+          <span class="summary-source" id="summary-source"></span>
+          <span class="summary-confidence hidden" id="summary-confidence"></span>
+        </div>
+      </section>
+    </section>
 
   <main class="search-layout">
     <section class="results-panel">
@@ -63,10 +77,13 @@
   <template id="history-item-template">
     <li class="result-card">
       <div class="result-meta">
-        <span class="result-url"></span>
+        <span class="result-badge hidden">ai pick</span>
+        <span class="result-source hidden"></span>
+        <span class="result-confidence hidden"></span>
         <span class="result-timestamp"></span>
       </div>
       <a class="result-title" href="#" target="_blank" rel="noopener noreferrer"></a>
+      <p class="result-ai-summary"></p>
       <p class="result-snippet"></p>
       <details class="result-details">
         <summary>conversation excerpt</summary>

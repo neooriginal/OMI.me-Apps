@@ -76,6 +76,7 @@ code {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  position: relative;
 }
 
 .header-searchbox {
@@ -123,6 +124,7 @@ code {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .header-link {
@@ -220,7 +222,7 @@ code {
   border: 1px solid var(--border);
   box-shadow: 0 6px 18px rgba(32, 33, 36, 0.08);
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .result-meta {
@@ -229,25 +231,54 @@ code {
   gap: 6px 12px;
   font-size: 0.85rem;
   color: var(--text-tertiary);
+  align-items: center;
 }
 
-.result-url {
+.result-badge {
+  background: rgba(26, 115, 232, 0.1);
+  color: var(--accent);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.result-source {
   color: #188038;
 }
 
-.result-title {
-  font-size: 1.05rem;
+.result-confidence {
   color: var(--accent);
   font-weight: 500;
+}
+
+.result-title {
+  font-size: 1.08rem;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .result-title:hover {
   text-decoration: underline;
 }
 
+.result-ai-summary {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.summary-ai--muted {
+  color: var(--text-secondary);
+}
+
 .result-snippet {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -282,6 +313,13 @@ code {
 .result-details li {
   border-left: 3px solid var(--accent);
   padding-left: 10px;
+  border-radius: 4px;
+  position: relative;
+}
+
+.result-item--pick {
+  border-left-color: #188038;
+  background: rgba(24, 128, 56, 0.08);
 }
 
 .result-actions {
@@ -364,6 +402,77 @@ code {
   outline: none;
   border-color: rgba(26, 115, 232, 0.6);
   box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+
+/* Summary banner */
+.summary-container {
+  padding: 0 clamp(24px, 6vw, 64px);
+  margin-top: clamp(4px, 2vw, 18px);
+  margin-bottom: clamp(18px, 4vw, 36px);
+}
+
+.summary-container:empty {
+  display: none;
+}
+
+.header-summary {
+  background: linear-gradient(135deg, rgba(26, 115, 232, 0.12), rgba(26, 115, 232, 0.04));
+  border: 1px solid rgba(26, 115, 232, 0.18);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+  box-shadow: 0 8px 20px rgba(26, 115, 232, 0.12);
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-heading {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.summary-link {
+  font-size: 0.9rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.summary-text {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.summary-text--muted {
+  color: var(--text-secondary);
+}
+
+.summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.summary-confidence {
+  background: rgba(26, 115, 232, 0.16);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 500;
 }
 
 
@@ -472,6 +581,10 @@ code {
 /* Responsive */
 
 @media (max-width: 1024px) {
+  .summary-container {
+    padding: 0 clamp(18px, 5vw, 32px);
+  }
+
   .search-layout {
     grid-template-columns: 1fr;
   }
@@ -483,17 +596,31 @@ code {
 }
 
 @media (max-width: 720px) {
+  .summary-container {
+    order: 2;
+    padding: 0 clamp(18px, 5vw, 32px);
+    margin-bottom: clamp(16px, 6vw, 28px);
+  }
+
   .search-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 18px;
   }
 
   .header-actions {
     width: 100%;
+    gap: 16px;
   }
 
-  .header-links {
-    flex-wrap: wrap;
+  .header-summary {
+    order: 3;
+  }
+
+  .summary-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   .search-layout {
@@ -503,6 +630,10 @@ code {
   .result-actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .result-card {
+    padding: 18px;
   }
 
   .card {
