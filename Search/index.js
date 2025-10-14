@@ -96,11 +96,76 @@ const apiLimiter = rateLimit({
 app.use(generalLimiter);
 
 const transcriptBuffers = new Map();
+const deferredAnalysisTimers = new Map();
+
+function cancelDeferredAnalysis(sessionId) {
+  const timer = deferredAnalysisTimers.get(sessionId);
+  if (timer) {
+    clearTimeout(timer);
+    deferredAnalysisTimers.delete(sessionId);
+  }
+}
+
+function scheduleDeferredAnalysis(buffer, sessionId) {
+  if (!buffer) {
+    return;
+  }
+  const effectiveSessionId = sessionId || buffer.sessionId;
+  if (!effectiveSessionId) {
+    return;
+  }
+  if (!buffer.nextAnalysisEarliestAt) {
+    cancelDeferredAnalysis(effectiveSessionId);
+    return;
+  }
+  const delay = buffer.nextAnalysisEarliestAt - Date.now();
+  if (delay <= 0) {
+    cancelDeferredAnalysis(effectiveSessionId);
+    setTimeout(async () => {
+      const latestBuffer = transcriptBuffers.get(effectiveSessionId);
+      if (!latestBuffer) {
+        return;
+      }
+      latestBuffer.nextAnalysisEarliestAt = null;
+      try {
+        await maybeRunSearch(latestBuffer, effectiveSessionId);
+      } catch (err) {
+        console.error('[Search] Deferred analysis failed:', err.message);
+      }
+    }, 0);
+    return;
+  }
+  cancelDeferredAnalysis(effectiveSessionId);
+  const timer = setTimeout(async () => {
+    deferredAnalysisTimers.delete(effectiveSessionId);
+    const latestBuffer = transcriptBuffers.get(effectiveSessionId);
+    if (!latestBuffer) {
+      return;
+    }
+    latestBuffer.nextAnalysisEarliestAt = null;
+    try {
+      await maybeRunSearch(latestBuffer, effectiveSessionId);
+    } catch (err) {
+      console.error('[Search] Deferred analysis failed:', err.message);
+    }
+  }, delay);
+  deferredAnalysisTimers.set(effectiveSessionId, timer);
+}
+
+function updateNextAnalysisEarliestAt(buffer, sessionId, timestamp) {
+  if (!buffer) {
+    return;
+  }
+  const effectiveSessionId = sessionId || buffer.sessionId;
+  buffer.nextAnalysisEarliestAt = typeof timestamp === 'number' ? timestamp : null;
+  scheduleDeferredAnalysis(buffer, effectiveSessionId);
+}
 
 function cleanupBuffers() {
   const now = Date.now();
   for (const [sessionId, data] of transcriptBuffers.entries()) {
     if (now - data.lastActivity > BUFFER_RETENTION_SECONDS * 1000) {
+      cancelDeferredAnalysis(sessionId);
       transcriptBuffers.delete(sessionId);
     }
   }
@@ -187,7 +252,7 @@ function recalcUserSentenceCount(buffer) {
 function refreshAccumulationStart(buffer) {
   const firstUserMessage = buffer.messages.find((message) => message.speaker === 'user');
   buffer.accumulationStartedAt = firstUserMessage ? firstUserMessage.timestamp : null;
-  buffer.nextAnalysisEarliestAt = null;
+  updateNextAnalysisEarliestAt(buffer, buffer.sessionId, null);
 }
 
 function flushUserChunk(buffer, reason) {
@@ -218,7 +283,7 @@ function flushUserChunk(buffer, reason) {
   buffer.currentUserChunk = null;
   buffer.currentUserWordCount = 0;
   buffer.lastUserChunkTimestamp = null;
-  buffer.nextAnalysisEarliestAt = null;
+  updateNextAnalysisEarliestAt(buffer, buffer.sessionId, null);
 }
 
 function resolveUid(req) {
@@ -486,10 +551,11 @@ async function maybeRunSearch(buffer, sessionId) {
     const waitSeconds = accumulationAgeSeconds === null
       ? MIN_ACCUMULATION_WINDOW_SECONDS
       : Math.max(0, MIN_ACCUMULATION_WINDOW_SECONDS - accumulationAgeSeconds);
-    buffer.nextAnalysisEarliestAt = Math.max(
+    const nextEligibleAt = Math.max(
       buffer.nextAnalysisEarliestAt || 0,
       now + waitSeconds * 1000
     );
+    updateNextAnalysisEarliestAt(buffer, sessionId, nextEligibleAt);
     debugLog('[Search] skip: accumulation window too short', {
       sessionId,
       accumulationAgeSeconds,
@@ -513,10 +579,11 @@ async function maybeRunSearch(buffer, sessionId) {
     const waitSeconds = silenceAgeSeconds === null
       ? MIN_SILENCE_AFTER_USER_SECONDS
       : Math.max(0, MIN_SILENCE_AFTER_USER_SECONDS - silenceAgeSeconds);
-    buffer.nextAnalysisEarliestAt = Math.max(
+    const nextEligibleAt = Math.max(
       buffer.nextAnalysisEarliestAt || 0,
       now + waitSeconds * 1000
     );
+    updateNextAnalysisEarliestAt(buffer, sessionId, nextEligibleAt);
     debugLog('[Search] skip: awaiting post-speech silence', {
       sessionId,
       silenceAgeSeconds,
@@ -528,7 +595,8 @@ async function maybeRunSearch(buffer, sessionId) {
 
   if (now - buffer.lastAnalysis < ANALYSIS_COOLDOWN_SECONDS * 1000) {
     const waitMs = ANALYSIS_COOLDOWN_SECONDS * 1000 - (now - buffer.lastAnalysis);
-    buffer.nextAnalysisEarliestAt = Math.max(buffer.nextAnalysisEarliestAt || 0, now + waitMs);
+    const nextEligibleAt = Math.max(buffer.nextAnalysisEarliestAt || 0, now + waitMs);
+    updateNextAnalysisEarliestAt(buffer, sessionId, nextEligibleAt);
     debugLog('[Search] skip: analysis cooldown active', {
       sessionId,
       waitMs
@@ -546,7 +614,8 @@ async function maybeRunSearch(buffer, sessionId) {
     buffer.userSentenceCount = 0;
     buffer.messages = buffer.messages.slice(-BUFFER_MAX_MESSAGES);
     refreshAccumulationStart(buffer);
-    buffer.nextAnalysisEarliestAt = Math.max(buffer.nextAnalysisEarliestAt || 0, now + waitMs);
+    const nextEligibleAt = Math.max(buffer.nextAnalysisEarliestAt || 0, now + waitMs);
+    updateNextAnalysisEarliestAt(buffer, sessionId, nextEligibleAt);
     return null;
   }
 
@@ -558,10 +627,11 @@ async function maybeRunSearch(buffer, sessionId) {
     buffer.userSentenceCount = 0;
     buffer.messages = buffer.messages.slice(-BUFFER_MAX_MESSAGES);
     refreshAccumulationStart(buffer);
-    buffer.nextAnalysisEarliestAt = Math.max(
+    const nextEligibleAt = Math.max(
       buffer.nextAnalysisEarliestAt || 0,
       now + ANALYSIS_COOLDOWN_SECONDS * 1000
     );
+    updateNextAnalysisEarliestAt(buffer, sessionId, nextEligibleAt);
     return null;
   }
 
@@ -604,12 +674,13 @@ async function maybeRunSearch(buffer, sessionId) {
 
   refreshAccumulationStart(buffer);
   if (lastSearchTimestamp) {
-    buffer.nextAnalysisEarliestAt = lastSearchTimestamp + cooldownMs;
+    updateNextAnalysisEarliestAt(buffer, sessionId, lastSearchTimestamp + cooldownMs);
   } else {
-    buffer.nextAnalysisEarliestAt = Math.max(
+    const nextEligibleAt = Math.max(
       buffer.nextAnalysisEarliestAt || 0,
       now + ANALYSIS_COOLDOWN_SECONDS * 1000
     );
+    updateNextAnalysisEarliestAt(buffer, sessionId, nextEligibleAt);
   }
 
   debugLog('[Search] search execution complete', {
@@ -782,7 +853,7 @@ app.post('/webhook', webhookLimiter, [
 if (speaker === 'user') {
   if (!buffer.accumulationStartedAt) {
     buffer.accumulationStartedAt = timestamp;
-    buffer.nextAnalysisEarliestAt = null;
+    updateNextAnalysisEarliestAt(buffer, buffer.sessionId, null);
   }
 
   if (
