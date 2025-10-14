@@ -110,7 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_search_queries_created_at ON search_queries(creat
 CREATE INDEX IF NOT EXISTS idx_jarvis_sessions_session_id ON jarvis_sessions(session_id);
 CREATE INDEX IF NOT EXISTS idx_jarvis_sessions_last_activity ON jarvis_sessions(last_activity);
 
--- Enable Row Level Security (optional, but recommended)
+-- Enable Row Level Security
 ALTER TABLE brain_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_nodes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_relationships ENABLE ROW LEVEL SECURITY;
@@ -119,7 +119,7 @@ ALTER TABLE search_queries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE search_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jarvis_sessions ENABLE ROW LEVEL SECURITY;
 
--- Create basic policies (you may want to customize these)
+-- Create basic policies
 CREATE POLICY "Users can access their own data" ON brain_users FOR ALL USING (true);
 CREATE POLICY "Users can access their own memory nodes" ON memory_nodes FOR ALL USING (true);
 CREATE POLICY "Users can access their own relationships" ON memory_relationships FOR ALL USING (true);
