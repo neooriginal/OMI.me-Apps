@@ -517,47 +517,6 @@ let cooldown = [];
 let cooldownTimeCache = [];
 
 // Supabase table initialization (only when env is configured)
-(async () => {
-  const hasSupabaseEnv = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
-  if (!hasSupabaseEnv) {
-    console.log('Supabase env not found. Skipping auto table setup.');
-    return;
-  }
-  try {
-    console.log('Setting up Friend app table...');
-    const { error } = await supabase.rpc('exec_sql', {
-      sql_query: `
-        CREATE TABLE IF NOT EXISTS frienddb (
-          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-          uid TEXT UNIQUE NOT NULL,
-          cooldown INTEGER DEFAULT 0,
-          responsepercentage INTEGER DEFAULT 10,
-          custominstruction TEXT DEFAULT '',
-          personality TEXT DEFAULT '100% chill; 35% friendly; 55% teasing; 10% thoughtful; 20% humorous; 5% deep; 20% nik',
-          logs JSONB DEFAULT '[]',
-          listenedto INTEGER DEFAULT 0,
-          rating INTEGER DEFAULT 100,
-          goals JSONB DEFAULT '[]',
-          analytics JSONB DEFAULT '{}',
-          word_counts JSONB DEFAULT '{}',
-          time_distribution JSONB DEFAULT '{"morning":0,"afternoon":0,"evening":0,"night":0}',
-          total_words INTEGER DEFAULT 0,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-      `
-    });
-
-    if (error) {
-      console.log("Table may already exist or exec_sql function not found.");
-      console.log("Please run the setup-supabase.sql script in your Supabase SQL editor.");
-    } else {
-      console.log("Friend app table created successfully!");
-    }
-  } catch (err) {
-    console.log("Auto-table creation failed. Please run setup-supabase.sql manually.");
-    console.log("Error:", err.message);
-  }
-})();
 
 class MessageBuffer {
   constructor() {

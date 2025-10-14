@@ -294,50 +294,6 @@ function buildPromptContext(messages) {
   };
 }
 
-async function ensureTables() {
-  if (!supabaseConfigured) {
-    console.log('[Search] Supabase not configured. Skipping table setup.');
-    return;
-  }
-  try {
-    console.log('[Search] Setting up tables...');
-    const ddl = `
-      CREATE TABLE IF NOT EXISTS search_queries (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        uid TEXT NOT NULL,
-        session_id TEXT,
-        query TEXT NOT NULL,
-        reasoning TEXT,
-        results JSONB DEFAULT '[]',
-        transcript_excerpt TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_search_queries_uid ON search_queries (uid);
-      CREATE INDEX IF NOT EXISTS idx_search_queries_created_at ON search_queries (created_at DESC);
-
-      CREATE TABLE IF NOT EXISTS search_settings (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        uid TEXT UNIQUE NOT NULL,
-        cooldown_seconds INTEGER DEFAULT ${MIN_COOLDOWN_AFTER_SEARCH_SECONDS},
-        min_sentences INTEGER DEFAULT ${USER_SENTENCE_THRESHOLD},
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      );
-    `;
-
-    const { error } = await supabase.rpc('exec_sql', { sql_query: ddl });
-    if (error) {
-      console.log('[Search] Table may already exist or exec_sql unavailable. Please run setup manually if needed.');
-    } else {
-      console.log('[Search] Tables created or already exist.');
-    }
-  } catch (err) {
-    console.error('[Search] Failed to ensure tables:', err.message);
-  }
-}
-
-ensureTables().catch(console.error);
-
 async function fetchUserSettings(uid) {
   if (!supabaseConfigured) {
     return {
