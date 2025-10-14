@@ -10,4 +10,3 @@ Search/.env
 .do
 .claude
 /Search/node_modules
-search-tester.js
