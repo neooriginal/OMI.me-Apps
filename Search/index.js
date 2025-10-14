@@ -58,6 +58,9 @@ const USER_FLUSH_TIMEOUT_SECONDS = 5;
 const MIN_ACCUMULATION_WINDOW_SECONDS = 15;
 const MIN_SILENCE_AFTER_USER_SECONDS = 3;
 const SENTENCE_END_REGEX = /[.!?]["')\]]?$/;
+const RECENT_SUMMARY_LIMIT = 14;
+const EARLIER_HIGHLIGHTS_LIMIT = 3;
+const EARLIER_SNIPPET_MAX_CHARS = 120;
 
 const ENABLE_DEBUG_LOGS = process.env.SEARCH_DEBUG_LOGS === 'true';
 
@@ -255,6 +258,49 @@ function buildConversationSummary(messages, limit = 20) {
     .join('\n');
 }
 
+function buildPromptContext(messages) {
+  const recentSummary = buildConversationSummary(messages, RECENT_SUMMARY_LIMIT);
+  const earlierMessages = messages.slice(0, -RECENT_SUMMARY_LIMIT);
+
+  if (!earlierMessages.length) {
+    return { recentSummary, earlierHighlights: null };
+  }
+
+  const highlights = [];
+  const seen = new Set();
+
+  for (let i = earlierMessages.length - 1; i >= 0; i -= 1) {
+    const message = earlierMessages[i];
+    if (message.speaker !== 'user') {
+      continue;
+    }
+    const snippet = message.text?.trim();
+    if (!snippet) {
+      continue;
+    }
+    const normalized = snippet.toLowerCase();
+    if (seen.has(normalized)) {
+      continue;
+    }
+    let truncated = snippet;
+    if (truncated.length > EARLIER_SNIPPET_MAX_CHARS) {
+      truncated = `${truncated.slice(0, EARLIER_SNIPPET_MAX_CHARS).trim()}…`;
+    }
+    highlights.push(`- ${truncated}`);
+    seen.add(normalized);
+    if (highlights.length >= EARLIER_HIGHLIGHTS_LIMIT) {
+      break;
+    }
+  }
+
+  highlights.reverse();
+
+  return {
+    recentSummary,
+    earlierHighlights: highlights.length ? highlights.join('\n') : null
+  };
+}
+
 async function ensureTables() {
   if (!supabaseConfigured) {
     console.log('[Search] Supabase not configured. Skipping table setup.');
@@ -395,8 +441,7 @@ async function analyzeConversation(messages) {
     return { should_search: false };
   }
 
-  const conversation = buildConversationSummary(messages, 20);
-
+  const { recentSummary, earlierHighlights } = buildPromptContext(messages);
   const systemPrompt = `
 You evaluate live conversation transcripts to decide if an internet search is useful.
 Return only valid JSON with the shape:
@@ -419,12 +464,13 @@ Guidelines:
 - If unsure, respond with should_search false.
 `;
 
-  const userPrompt = `
-Conversation (most recent first):
-${conversation}
+  const contextPrefix = earlierHighlights
+    ? `Earlier user context:\n${earlierHighlights}\n\n`
+    : '';
+  const userPrompt = `${contextPrefix}Conversation (most recent first):
+${recentSummary}
 
-Respond with JSON only.
-`;
+Respond with JSON only.`;
 
   try {
     const completion = await openai.chat.completions.create({
