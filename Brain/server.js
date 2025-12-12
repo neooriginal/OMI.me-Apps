@@ -5,77 +5,60 @@
 
 require('dotenv').config();
 const express = require('express');
-const OpenAI = require('openai');
 const bodyParser = require('body-parser');
-const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const sanitizeHtml = require('sanitize-html');
 const { URL } = require('url');
-const fetch = require('node-fetch');
-const crypto = require('crypto');
 
-// Initialize Supabase client
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-);
+// Config & Utils
+const supabase = require('./src/config/supabase');
+const openai = require('./src/config/openai');
+const { handleDatabaseError, decryptText, resolveUid } = require('./src/utils/helpers');
 
+// Middleware
+const { requireAuth } = require('./src/middleware/auth');
+const {
+    validateUid,
+    validateTextInput,
+    validateNodeData,
+    validateInput
+} = require('./src/middleware/validation');
 
-// Generic error handler to prevent leaking sensitive info
-function handleDatabaseError(error, operation) {
-    console.error(`Database error during ${operation}:`, error);
-    return {
-        status: 500,
-        error: 'A database error occurred. Please try again later.'
-    };
-}
+// Services
+const {
+    loadMemoryGraph,
+    saveMemoryGraph,
+    addSampleData,
+    deleteAllUserData
+} = require('./src/services/memoryService');
 
-function decryptText(payload, keyB64) {
-    try {
-        const [ivB64, dataB64] = payload.split(':');
-        const iv = Buffer.from(ivB64, 'base64');
-        const data = Buffer.from(dataB64, 'base64');
-        const key = Buffer.from(keyB64, 'base64');
-        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-        const ciphertext = data.slice(0, -16);
-        const authTag = data.slice(-16);
-        decipher.setAuthTag(authTag);
-        const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-        return decrypted.toString('utf8');
-    } catch {
-        return null;
-    }
-}
+const {
+    processChatWithGPT,
+    processTextWithGPT
+} = require('./src/services/aiService');
 
 const app = express();
 app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
 const port = process.env.PORT || 3000;
 
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
-// Session configuration for production
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'brain-app-default-secret-please-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Only use secure cookies in production
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
     }
 };
 
-// Add domain setting for production if specified
 if (process.env.SESSION_DOMAIN) {
     sessionConfig.cookie.domain = process.env.SESSION_DOMAIN;
 }
@@ -87,333 +70,6 @@ app.get("/privacy", (req, res) => {
     res.sendFile(__dirname + '/public/privacy.html');
 });
 
-// Load memory graph from database
-async function loadMemoryGraph(uid) {
-    const nodes = new Map();
-    const relationships = [];
-
-    try {
-        // Load nodes
-        const { data: dbNodes } = await supabase
-            .from('memory_nodes')
-            .select()
-            .eq('uid', uid);
-
-        dbNodes.forEach(node => {
-            nodes.set(node.node_id, {
-                id: node.node_id,
-                type: node.type,
-                name: node.name,
-                connections: node.connections
-            });
-        });
-
-        // Load relationships
-        const { data: dbRelationships } = await supabase
-            .from('memory_relationships')
-            .select()
-            .eq('uid', uid);
-
-        relationships.push(...dbRelationships.map(rel => ({
-            source: rel.source,
-            target: rel.target,
-            action: rel.action
-        })));
-
-        return { nodes, relationships };
-    } catch (error) {
-        console.error('Error loading memory graph:', error);
-        throw error;
-    }
-}
-
-// Save memory graph to database
-async function saveMemoryGraph(uid, newData) {
-    try {
-        // Accept either "entities" (preferred) or "nodes" (fallback) to be robust to client payloads
-        const incomingEntities = Array.isArray(newData.entities) && newData.entities.length > 0
-            ? newData.entities
-            : (Array.isArray(newData.nodes) ? newData.nodes : []);
-
-        const nodeRows = incomingEntities.map(entity => ({
-            uid,
-            node_id: entity.id,
-            type: entity.type,
-            name: entity.name,
-            connections: entity.connections ?? 0
-        }));
-
-        let nodesResult = { count: 0 };
-        if (nodeRows.length > 0) {
-            // Use explicit conflict target so PostgREST performs a true UPSERT on the composite unique key
-            const { data: nodeData, error: nodeError } = await supabase
-                .from('memory_nodes')
-                .upsert(nodeRows, { onConflict: 'uid,node_id' })
-                .select('uid,node_id');
-
-            if (nodeError) {
-                throw nodeError;
-            }
-            nodesResult.count = Array.isArray(nodeData) ? nodeData.length : 0;
-        }
-
-        const relationshipRows = (newData.relationships || []).map(rel => ({
-            uid,
-            source: rel.source,
-            target: rel.target,
-            action: rel.action
-        }));
-
-        let relResult = { count: 0 };
-        if (relationshipRows.length > 0) {
-            // Insert relationships; table has no unique composite, so avoid unintended conflict behavior
-            const { data: relData, error: relationshipError } = await supabase
-                .from('memory_relationships')
-                .insert(relationshipRows)
-                .select('uid,source,target');
-
-            if (relationshipError) {
-                throw relationshipError;
-            }
-            relResult.count = Array.isArray(relData) ? relData.length : 0;
-        }
-
-        return {
-            nodesUpserted: nodesResult.count,
-            relationshipsInserted: relResult.count
-        };
-    } catch (error) {
-        console.error('Failed to persist memory graph:', error);
-        throw error;
-    }
-}
-
-// Process chat with efficient context
-async function processChatWithGPT(message, context) {
-    const idToNode = new Map(context.nodes.map(n => [n.id, n]));
-    const contextString = `People and Places: ${context.nodes.map(n => n.name).join(', ')}\n` +
-        `Facts: ${context.relationships.map(r => `${idToNode.get(r.source)?.name || r.source} ${r.action} ${idToNode.get(r.target)?.name || r.target}`).join('. ')}`;
-
-    const systemPrompt = `You are a friendly and engaging AI companion with access to these memories:
-
-${contextString}
-
-Personality Guidelines:
-- Be warm and conversational, like chatting with a friend
-- Show enthusiasm and genuine interest
-- Use casual language and natural expressions
-- Add personality with occasional humor or playful remarks
-- Be empathetic and understanding
-- Share insights in a relatable way
-
-When responding:
-1. Make it personal:
-   - Connect memories to emotions and experiences
-   - Share observations like you're telling a story
-   - Use "I notice" or "I remember" instead of formal statements
-   - Express excitement about interesting connections
-
-2. Keep it natural:
-   - Chat like a friend would
-   - Use contractions (I'm, you're, that's)
-   - Add conversational fillers (you know, actually, well)
-   - React naturally to discoveries ("Oh, that's interesting!")
-
-3. Be helpful but human:
-   - If you know something, share it enthusiastically
-   - If you don't know, be honest and casual about it
-   - Suggest possibilities and connections
-   - Show curiosity about what you're discussing
-
-Memory Status: ${context.nodes.length > 0 ?
-            `I've got quite a collection here - ${context.nodes.length} memories all connected in interesting ways!` :
-            "I don't have any memories stored yet, but I'm excited to learn!"}`;
-
-    try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: systemPrompt
-                },
-                {
-                    role: "user",
-                    content: message
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 150
-        });
-
-        return completion.choices[0].message.content;
-    } catch (error) {
-        console.error('Error processing chat:', error);
-        throw error;
-    }
-}
-
-
-// Process text with GPT-4 to extract entities and relationships
-async function processTextWithGPT(text, existingMemory = { nodes: new Map(), relationships: [] }) {
-    // Convert existing nodes to a more usable format for the prompt
-    const existingNodes = Array.from(existingMemory.nodes.values());
-    const existingRelationships = existingMemory.relationships;
-
-    // Create context strings for existing memory
-    const existingNodesContext = existingNodes.length > 0 ?
-        `\nEXISTING NODES (REUSE THESE IDs WHEN POSSIBLE):\n${existingNodes.map(n => `- ${n.id}: ${n.name} (${n.type})`).join('\n')}` :
-        '';
-
-    const existingRelationshipsContext = existingRelationships.length > 0 ?
-        `\nEXISTING RELATIONSHIPS (REUSE THESE PATTERNS):\n${existingRelationships.map(r => `- ${r.source} → ${r.target}: ${r.action}`).slice(0, 20).join('\n')}` :
-        '';
-
-    const prompt = `Analyze this text like a human brain processing new information. Extract key entities and their relationships, focusing on logical connections and cognitive patterns.
-
-IMPORTANT: Before creating new entities, check if they already exist in the memory graph below. If an entity matches or is very similar to an existing one, REUSE the existing node ID instead of creating a new one.
-
-${existingNodesContext}${existingRelationshipsContext}
-
-Text to analyze: "${text}"
-
-Format response as JSON:
-{
-    "entities": [
-        {
-            "id": "ORB-EntityName OR existing-node-id",
-            "type": "person|location|event|concept",
-            "name": "Original Name"
-        }
-    ],
-    "relationships": [
-        {
-            "source": "node-id-1",
-            "target": "node-id-2",
-            "action": "description of relationship"
-        }
-    ]
-}
-
-Guidelines for brain-like processing:
-1. Entity Recognition Priority:
-   - FIRST: Check if entity matches existing nodes (same person, place, concept)
-   - If match found: Use existing node ID, keep existing name
-   - If no match: Create new entity with ORB-EntityName format
-   - People: Identify as agents (ORB-FirstName format for new ones)
-   - Locations: Places that provide spatial context
-   - Events: Temporal markers connecting other entities
-   - Concepts: Abstract ideas linking multiple entities
-
-2. Relationship Analysis:
-   - Check existing relationships for similar patterns
-   - Reuse similar action descriptions when appropriate
-   - Focus on cause and effect, temporal sequences
-   - Include contextual links and logical dependencies
-
-3. Memory Integration Rules:
-   - Prioritize connecting to existing nodes over creating new ones
-   - If uncertain about entity match, favor reusing existing nodes
-   - Only create new entities for genuinely new information
-   - Link new information to existing patterns when possible
-
-4. Quality Control:
-   - Only extract significant, memorable information
-   - Focus on actionable relationships
-   - Avoid creating duplicate or near-duplicate entities
-   - Ensure relationships make logical sense
-
-Return empty arrays if no meaningful patterns found.`;
-
-    try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a precise entity and relationship extraction system. Extract key information and format it exactly as requested. Return only valid JSON."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0.45,
-            max_tokens: 1000
-        });
-
-        return JSON.parse(completion.choices[0].message.content);
-    } catch (error) {
-        console.error('Error processing text with GPT:', error);
-        throw error;
-    }
-}
-
-// Authentication middleware
-function requireAuth(req, res, next) {
-    if (!req.session) {
-        return res.status(401).json({ error: 'No session - please login again' });
-    }
-
-    if (!req.session.userId) {
-        return res.status(401).json({ error: 'Session invalid - please login again' });
-    }
-
-    req.uid = req.session.userId;
-    next();
-}
-
-// Input validation middleware
-function validateUid(req, res, next) {
-    // Handle both JSON and form data
-    const uid = req.body.uid || req.query.uid;
-    if (!uid || typeof uid !== 'string' || uid.length < 3 || uid.length > 50) {
-        return res.status(400).json({ error: 'Invalid user ID format' });
-    }
-    req.uid = uid.replace(/[^a-zA-Z0-9-_]/g, '');
-    next();
-}
-
-function resolveUid(req) {
-    if (req.session?.userId) {
-        return req.session.userId;
-    }
-    const rawUid = req.body?.uid || req.query?.uid;
-    if (typeof rawUid === 'string' && rawUid.length >= 3 && rawUid.length <= 50) {
-        return rawUid.replace(/[^a-zA-Z0-9-_]/g, '');
-    }
-    return null;
-}
-
-function validateTextInput(req, res, next) {
-    const { message, transcript_segments } = req.body;
-
-    if (message && (typeof message !== 'string')) {
-        return res.status(400).json({ error: 'Invalid message format' });
-    }
-
-    if (transcript_segments && (!Array.isArray(transcript_segments))) {
-        return res.status(400).json({ error: 'Invalid transcript format' });
-    }
-
-    next();
-}
-
-function validateNodeData(req, res, next) {
-    const { name, type } = req.body;
-
-    if (!name || typeof name !== 'string' || name.length > 1000) {
-        return res.status(400).json({ error: 'Invalid node name' });
-    }
-
-    if (!type || typeof type !== 'string' || type.length > 1000) {
-        return res.status(400).json({ error: 'Invalid node type' });
-    }
-
-    next();
-}
-
 app.get("/overview", (req, res) => {
     res.sendFile(__dirname + '/public/overview.html');
 });
@@ -422,12 +78,10 @@ app.get("/", (req, res) => {
     res.sendFile(__dirname + '/public/main.html');
 });
 
-// Login route
 app.get("/login", (req, res) => {
     res.sendFile(__dirname + '/public/login.html');
 });
 
-// Auth endpoints
 app.post("/api/auth/login", validateUid, async (req, res) => {
     try {
         const uid = req.uid;
@@ -477,7 +131,6 @@ app.post("/api/auth/logout", (req, res) => {
     });
 });
 
-// Profile endpoint
 app.get('/api/profile', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
@@ -552,7 +205,6 @@ app.get("/setup", async (req, res) => {
     res.json({ 'is_setup_completed': true });
 });
 
-// Edit node endpoint
 app.put('/api/node/:nodeId', requireAuth, validateNodeData, async (req, res) => {
     try {
         const { nodeId } = req.params;
@@ -586,7 +238,6 @@ app.put('/api/node/:nodeId', requireAuth, validateNodeData, async (req, res) => 
     }
 });
 
-// Delete node endpoint
 app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
     const { nodeId } = req.params;
     const uid = req.uid;
@@ -622,7 +273,6 @@ app.delete('/api/node/:nodeId', requireAuth, async (req, res) => {
     }
 });
 
-// Protected API endpoints
 app.post('/api/chat', requireAuth, validateTextInput, async (req, res) => {
     try {
         const { message, context, key } = req.body;
@@ -660,59 +310,6 @@ app.post('/api/chat', requireAuth, validateTextInput, async (req, res) => {
     }
 });
 
-function addSampleData(uid, numNodes = 3000, numRelationships = 5000) {
-    const types = ['person', 'location', 'event', 'concept'];
-    const actions = ['knows', 'lives_in', 'attended', 'connected_to', 'influenced', 'created'];
-
-    const firstNames = ['Liam', 'Emma', 'Noah', 'Olivia', 'Ethan', 'Ava', 'James', 'Sophia', 'Lucas', 'Mia'];
-    const lastNames = ['Johnson', 'Smith', 'Brown', 'Williams', 'Taylor', 'Anderson', 'Davis', 'Miller', 'Wilson', 'Moore'];
-    const places = ['New York', 'Berlin', 'Tokyo', 'London', 'Paris', 'Sydney', 'Toronto', 'Madrid', 'Rome', 'Amsterdam'];
-    const events = ['Tech Conference', 'Music Festival', 'Art Exhibition', 'Startup Meetup', 'Science Fair'];
-    const concepts = ['Quantum Computing', 'AI Ethics', 'Sustainable Energy', 'Blockchain Security', 'Neural Networks'];
-
-    let nodes = [];
-    let relationships = [];
-
-    for (let i = 0; i < numNodes; i++) {
-        const id = `node-${i}`;
-        const type = getRandomElement(types);
-        let name;
-
-        switch (type) {
-            case 'Person':
-                name = `${getRandomElement(firstNames)} ${getRandomElement(lastNames)}`;
-                break;
-            case 'Location':
-                name = getRandomElement(places);
-                break;
-            case 'Event':
-                name = getRandomElement(events);
-                break;
-            case 'Concept':
-                name = getRandomElement(concepts);
-                break;
-        }
-
-        nodes.push({ id, type, name, uid });
-    }
-
-    for (let i = 0; i < numRelationships; i++) {
-        const source = getRandomElement(nodes).id;
-        const target = getRandomElement(nodes).id;
-        if (source !== target) {
-            const action = getRandomElement(actions);
-            relationships.push({ source, target, action, uid });
-        }
-    }
-
-    return { nodes, relationships };
-}
-
-function getRandomElement(array) {
-    return array[Math.floor(Math.random() * array.length)];
-}
-
-// Get current memory graph
 app.get('/api/memory-graph', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
@@ -739,7 +336,6 @@ app.post('/api/memory-graph', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
         const result = await saveMemoryGraph(uid, req.body);
-        // Respond with counts for easier diagnostics on client/devtools
         res.json({ success: true, ...result });
     } catch (error) {
         console.error('Error saving memory graph:', error);
@@ -812,32 +408,6 @@ app.post('/api/process-text', validateTextInput, async (req, res) => {
     }
 });
 
-// Delete all user data
-async function deleteAllUserData(uid) {
-    try {
-        await supabase
-            .from('memory_relationships')
-            .delete()
-            .eq('uid', uid);
-
-        await supabase
-            .from('memory_nodes')
-            .delete()
-            .eq('uid', uid);
-
-        await supabase
-            .from('brain_users')
-            .delete()
-            .eq('uid', uid);
-
-        return true;
-    } catch (error) {
-        console.error('Error deleting user data:', error);
-        throw error;
-    }
-}
-
-// API Endpoints
 app.post('/api/delete-all-data', requireAuth, async (req, res) => {
     try {
         const uid = req.uid;
@@ -857,31 +427,6 @@ app.post('/api/delete-all-data', requireAuth, async (req, res) => {
     }
 });
 
-// Input validation middleware
-const validateInput = (req, res, next) => {
-    const { query, type } = req.body;
-
-    if (!query || typeof query !== 'string' || query.length > 200) {
-        return res.status(400).json({
-            error: 'Invalid query parameter'
-        });
-    }
-
-    if (!type || typeof type !== 'string' || type.length > 50) {
-        return res.status(400).json({
-            error: 'Invalid type parameter'
-        });
-    }
-
-    // Remove any potentially harmful characters
-    req.body.query = query.replace(/[^\w\s-]/g, '');
-    req.body.type = type.replace(/[^\w\s-]/g, '');
-
-    next();
-};
-
-// Enrich content endpoint
-// Generate node description
 app.post('/api/generate-description', requireAuth, async (req, res) => {
     try {
         const { node, connections } = req.body;
@@ -1030,7 +575,6 @@ app.post('/api/enrich-content', requireAuth, validateInput, async (req, res) => 
     }
 });
 
-// Error pages
 app.use((req, res, next) => {
     res.status(404).sendFile(__dirname + '/public/404.html');
 });
@@ -1041,7 +585,6 @@ app.use((err, req, res, next) => {
     res.status(result.status).sendFile(__dirname + '/public/500.html');
 });
 
-// Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
